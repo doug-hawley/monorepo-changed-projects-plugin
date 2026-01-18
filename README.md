@@ -95,9 +95,12 @@ tasks.register("showChangedFiles") {
         val metadataMap = project.extensions.extraProperties.get("changedProjectsMetadata") as Map<String, com.bitmoxie.monorepochangedprojects.domain.ProjectMetadata>
         
         metadataMap.values.forEach { metadata ->
-            if (metadata.changedFiles.isNotEmpty()) {
-                println("${metadata.fullyQualifiedName}: ${metadata.changedFiles.size} files changed")
-                println("  Dependencies: ${metadata.dependencyNames}")
+            // hasChanges() returns true if project has direct changes OR dependency changes
+            if (metadata.hasChanges()) {
+                println("${metadata.fullyQualifiedName}: affected by changes")
+                println("  Direct changes: ${metadata.changedFiles.size} files")
+                println("  Has direct changes: ${metadata.hasDirectChanges()}")
+                println("  Dependencies: ${metadata.dependencies.map { it.name }}")
             }
         }
     }

@@ -3,22 +3,28 @@ package com.bitmoxie.monorepochangedprojects.domain
 data class ProjectMetadata(
     val name: String,
     val fullyQualifiedName: String,
-    val dependencyNames: List<String> = emptyList(),
+    val dependencies: List<ProjectMetadata> = emptyList(),
     val changedFiles: List<String> = emptyList()
 ) {
     /**
-     * Returns true if this project depends on the given project name.
+     * Returns true if this project has changed files OR any of its dependencies have changes (recursively).
      */
-    fun hasDependency(projectName: String): Boolean {
-        return dependencyNames.contains(projectName)
+    fun hasChanges(): Boolean {
+        // Check if this project has direct changes
+        if (changedFiles.isNotEmpty()) {
+            return true
+        }
+
+        // Check if any dependency has changes (recursively)
+        return dependencies.any { it.hasChanges() }
     }
 
     /**
-     * Returns true if this project has any changed files.
+     * Returns true if this project has direct changed files (not including dependency changes).
      */
-    fun hasChanges(): Boolean = changedFiles.isNotEmpty()
+    fun hasDirectChanges(): Boolean = changedFiles.isNotEmpty()
 
     override fun toString(): String {
-        return "ProjectMetadata(name='$name', fullyQualifiedName='$fullyQualifiedName', dependencies=${dependencyNames.size}, changedFiles=${changedFiles.size} files)"
+        return "ProjectMetadata(name='$name', fullyQualifiedName='$fullyQualifiedName', dependencies=${dependencies.size}, changedFiles=${changedFiles.size} files)"
     }
 }

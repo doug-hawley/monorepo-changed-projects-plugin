@@ -55,28 +55,27 @@ class ProjectMetadataFactory(private val logger: Logger) {
         // Find dependency paths
         val dependencyPaths = findProjectDependencies(project)
 
+        // Recursively build metadata for each dependency (nested objects)
+        val dependencyMetadataList = dependencyPaths.mapNotNull { depPath ->
+            projectMap[depPath]?.let { depProject ->
+                buildMetadataRecursively(depProject, projectMap, metadataMap, changedFilesMap)
+            }
+        }
+
         // Get changed files for this project
         val changedFiles = changedFilesMap[project.path] ?: emptyList()
 
-        // Create metadata with dependency names (not nested objects)
+        // Create metadata with nested dependency objects
         val metadata = ProjectMetadata(
             name = project.name,
             fullyQualifiedName = project.path,
-            dependencyNames = dependencyPaths.toList(),
+            dependencies = dependencyMetadataList,
             changedFiles = changedFiles
         )
 
         // Cache the metadata
         metadataMap[project.path] = metadata
 
-        // Recursively build metadata for dependencies to populate the cache
-        dependencyPaths.forEach { depPath ->
-            projectMap[depPath]?.let { depProject ->
-                if (!metadataMap.containsKey(depPath)) {
-                    buildMetadataRecursively(depProject, projectMap, metadataMap, changedFilesMap)
-                }
-            }
-        }
 
         return metadata
     }
@@ -96,7 +95,7 @@ class ProjectMetadataFactory(private val logger: Logger) {
         return metadataMap[project.path] ?: ProjectMetadata(
             name = project.name,
             fullyQualifiedName = project.path,
-            dependencyNames = emptyList(),
+            dependencies = emptyList(),
             changedFiles = changedFilesMap[project.path] ?: emptyList()
         )
     }

@@ -12,7 +12,9 @@ data class ChangedProjects(
      * This includes projects with direct changes AND projects whose dependencies have changed.
      */
     fun getChangedProjects(): List<String> {
-        return getAffectedProjects().map { it.name }
+        return projects
+            .filter { it.hasChanges() }
+            .map { it.name }
     }
 
     /**
@@ -20,33 +22,16 @@ data class ChangedProjects(
      * This includes projects with direct changes AND projects whose dependencies have changed.
      */
     fun getChangedProjectPaths(): List<String> {
-        return getAffectedProjects().map { it.fullyQualifiedName }
+        return projects
+            .filter { it.hasChanges() }
+            .map { it.fullyQualifiedName }
     }
 
     /**
      * Returns the count of projects affected by changes (including dependency changes).
      */
     fun getChangedProjectCount(): Int {
-        return getAffectedProjects().size
-    }
-
-    /**
-     * Returns all projects affected by changes (either direct changes or dependency changes).
-     */
-    fun getAffectedProjects(): List<ProjectMetadata> {
-        val projectsWithDirectChanges = projects.filter { it.hasChanges() }
-        val affected = mutableSetOf<ProjectMetadata>()
-
-        // Add all projects with direct changes
-        affected.addAll(projectsWithDirectChanges)
-
-        // Add all projects that depend on changed projects
-        projectsWithDirectChanges.forEach { changedProject ->
-            val dependents = getProjectsDependingOn(changedProject.fullyQualifiedName)
-            affected.addAll(dependents)
-        }
-
-        return affected.toList()
+        return projects.count { it.hasChanges() }
     }
 
     /**
@@ -74,7 +59,7 @@ data class ChangedProjects(
      * Returns projects that have direct changes (not just dependency changes).
      */
     fun getProjectsWithDirectChanges(): List<ProjectMetadata> {
-        return projects.filter { it.hasChanges() }
+        return projects.filter { it.hasDirectChanges() }
     }
 
     /**
@@ -85,8 +70,8 @@ data class ChangedProjects(
      * @return List of affected projects matching the prefix
      */
     fun getChangedProjectsWithPrefix(prefix: String): List<ProjectMetadata> {
-        return getAffectedProjects().filter { project ->
-            project.fullyQualifiedName.startsWith(prefix)
+        return projects.filter { project ->
+            project.hasChanges() && project.fullyQualifiedName.startsWith(prefix)
         }
     }
 
@@ -146,30 +131,17 @@ data class ChangedProjects(
      * Returns projects that depend on the given project (directly or transitively).
      */
     fun getProjectsDependingOn(projectName: String): List<ProjectMetadata> {
-        // Build a map for quick lookups
-        val projectMap = projects.associateBy { it.fullyQualifiedName }
-        val altMap = projects.associateBy { it.name }
-
-        // Find all projects that depend on the given project (transitively)
-        val dependents = mutableListOf<ProjectMetadata>()
-
-        projects.forEach { project ->
-            if (hasDependencyTransitively(project, projectName, projectMap, altMap)) {
-                dependents.add(project)
-            }
+        return projects.filter { project ->
+            hasDependencyOn(project, projectName)
         }
-
-        return dependents
     }
 
     /**
-     * Checks if a project depends on the given project transitively.
+     * Checks if a project depends on the given project (transitively).
      */
-    private fun hasDependencyTransitively(
+    private fun hasDependencyOn(
         project: ProjectMetadata,
         targetName: String,
-        projectMap: Map<String, ProjectMetadata>,
-        altMap: Map<String, ProjectMetadata>,
         visited: MutableSet<String> = mutableSetOf()
     ): Boolean {
         // Avoid circular dependencies
@@ -178,15 +150,13 @@ data class ChangedProjects(
         }
         visited.add(project.fullyQualifiedName)
 
-        // Check direct dependencies
-        if (project.hasDependency(targetName)) {
-            return true
-        }
-
-        // Check transitive dependencies
-        for (depName in project.dependencyNames) {
-            val depProject = projectMap[depName] ?: altMap[depName]
-            if (depProject != null && hasDependencyTransitively(depProject, targetName, projectMap, altMap, visited)) {
+        // Check if any direct dependency matches
+        for (dep in project.dependencies) {
+            if (dep.name == targetName || dep.fullyQualifiedName == targetName) {
+                return true
+            }
+            // Check transitively
+            if (hasDependencyOn(dep, targetName, visited)) {
                 return true
             }
         }
@@ -199,7 +169,7 @@ data class ChangedProjects(
      */
     fun getSummary(): ChangeSummary {
         val projectsWithDirectChanges = getProjectsWithDirectChanges()
-        val affectedProjects = getAffectedProjects()
+        val affectedProjects = projects.filter { it.hasChanges() }
         return ChangeSummary(
             totalProjects = projects.size,
             changedProjects = projectsWithDirectChanges.size,

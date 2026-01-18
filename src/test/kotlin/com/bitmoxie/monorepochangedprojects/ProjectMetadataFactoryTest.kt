@@ -24,7 +24,7 @@ class ProjectMetadataFactoryTest : FunSpec({
         rootMetadata shouldNotBe null
         rootMetadata!!.name shouldBe rootProject.name
         rootMetadata.fullyQualifiedName shouldBe ":"
-        rootMetadata.dependencyNames shouldHaveSize 0
+        rootMetadata.dependencies shouldHaveSize 0
     }
 
     test("should build metadata for project with single subproject") {
@@ -81,8 +81,9 @@ class ProjectMetadataFactoryTest : FunSpec({
 
         val serviceMetadata = metadataMap[":service"]
         serviceMetadata shouldNotBe null
-        serviceMetadata!!.dependencyNames shouldHaveSize 1
-        serviceMetadata.dependencyNames shouldContain ":common-lib"
+        serviceMetadata!!.dependencies shouldHaveSize 1
+        serviceMetadata.dependencies[0].name shouldBe "common-lib"
+        serviceMetadata.dependencies[0].fullyQualifiedName shouldBe ":common-lib"
     }
 
     test("should build metadata with transitive dependencies") {
@@ -119,13 +120,13 @@ class ProjectMetadataFactoryTest : FunSpec({
 
         val userServiceMetadata = metadataMap[":user-service"]
         userServiceMetadata shouldNotBe null
-        userServiceMetadata!!.dependencyNames shouldHaveSize 1
-        userServiceMetadata.dependencyNames shouldContain ":common-lib"
+        userServiceMetadata!!.dependencies shouldHaveSize 1
+        userServiceMetadata.dependencies[0].fullyQualifiedName shouldBe ":common-lib"
 
         val adminUiMetadata = metadataMap[":admin-ui"]
         adminUiMetadata shouldNotBe null
-        adminUiMetadata!!.dependencyNames shouldHaveSize 1
-        adminUiMetadata.dependencyNames shouldContain ":user-service"
+        adminUiMetadata!!.dependencies shouldHaveSize 1
+        adminUiMetadata.dependencies[0].fullyQualifiedName shouldBe ":user-service"
     }
 
     test("should build metadata with multiple dependencies") {
@@ -169,9 +170,11 @@ class ProjectMetadataFactoryTest : FunSpec({
 
         val apiGatewayMetadata = metadataMap[":api-gateway"]
         apiGatewayMetadata shouldNotBe null
-        apiGatewayMetadata!!.dependencyNames shouldHaveSize 2
-        apiGatewayMetadata.dependencyNames shouldContain ":user-api"
-        apiGatewayMetadata.dependencyNames shouldContain ":order-api"
+        apiGatewayMetadata!!.dependencies shouldHaveSize 2
+
+        val dependencyNames = apiGatewayMetadata.dependencies.map { it.name }
+        dependencyNames shouldContain "user-api"
+        dependencyNames shouldContain "order-api"
     }
 
     test("should build single project metadata") {
@@ -199,8 +202,8 @@ class ProjectMetadataFactoryTest : FunSpec({
         // then
         serviceMetadata.name shouldBe "service"
         serviceMetadata.fullyQualifiedName shouldBe ":service"
-        serviceMetadata.dependencyNames shouldHaveSize 1
-        serviceMetadata.dependencyNames shouldContain ":common-lib"
+        serviceMetadata.dependencies shouldHaveSize 1
+        serviceMetadata.dependencies[0].name shouldBe "common-lib"
     }
 
     test("should handle project with no dependencies") {
@@ -222,7 +225,7 @@ class ProjectMetadataFactoryTest : FunSpec({
         // then
         val standaloneMetadata = metadataMap[":standalone"]
         standaloneMetadata shouldNotBe null
-        standaloneMetadata!!.dependencyNames shouldHaveSize 0
+        standaloneMetadata!!.dependencies shouldHaveSize 0
     }
 
     test("should list all dependency names") {
@@ -257,9 +260,10 @@ class ProjectMetadataFactoryTest : FunSpec({
 
         // then
         serviceMetadata shouldNotBe null
-        serviceMetadata!!.dependencyNames shouldHaveSize 2
-        serviceMetadata.dependencyNames shouldContain ":lib-a"
-        serviceMetadata.dependencyNames shouldContain ":lib-b"
+        serviceMetadata!!.dependencies shouldHaveSize 2
+        val dependencyNames = serviceMetadata.dependencies.map { it.fullyQualifiedName }
+        dependencyNames shouldContain ":lib-a"
+        dependencyNames shouldContain ":lib-b"
     }
 
     test("should check if project has specific dependency") {
@@ -295,11 +299,12 @@ class ProjectMetadataFactoryTest : FunSpec({
 
         // then
         adminUiMetadata shouldNotBe null
-        adminUiMetadata!!.hasDependency(":user-service") shouldBe true
-        adminUiMetadata.hasDependency(":common-lib") shouldBe false // Not direct dependency
+        adminUiMetadata!!.dependencies shouldHaveSize 1
+        adminUiMetadata.dependencies[0].name shouldBe "user-service"
 
         userServiceMetadata shouldNotBe null
-        userServiceMetadata!!.hasDependency(":common-lib") shouldBe true
+        userServiceMetadata!!.dependencies shouldHaveSize 1
+        userServiceMetadata.dependencies[0].name shouldBe "common-lib"
     }
 
     test("should build metadata with empty changed files when no map provided") {
@@ -458,15 +463,12 @@ class ProjectMetadataFactoryTest : FunSpec({
         serviceMetadata.changedFiles shouldContain "service/Service.kt"
         serviceMetadata.hasChanges() shouldBe true
 
-        // Check dependency has its own changed files by looking up in metadata map
-        val commonLibMetadata = metadataMap[":common-lib"]
-        commonLibMetadata shouldNotBe null
-        commonLibMetadata!!.changedFiles shouldHaveSize 1
+        // Check dependency has its own changed files
+        serviceMetadata.dependencies shouldHaveSize 1
+        val commonLibMetadata = serviceMetadata.dependencies[0]
+        commonLibMetadata.changedFiles shouldHaveSize 1
         commonLibMetadata.changedFiles shouldContain "common-lib/Utils.kt"
         commonLibMetadata.hasChanges() shouldBe true
-
-        // Verify service has dependency reference
-        serviceMetadata.dependencyNames shouldContain ":common-lib"
     }
 
     test("should handle projects with no changes in changed files map") {

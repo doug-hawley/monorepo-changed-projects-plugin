@@ -29,37 +29,80 @@ class ProjectMetadataTest : FunSpec({
         metadata.hasChanges() shouldBe false
     }
 
-    test("hasDependency returns true when project depends on given project") {
+    test("hasChanges returns true when dependency has changes") {
         // given
+        val dependency = ProjectMetadata(
+            name = "dependency",
+            fullyQualifiedName = ":dependency",
+            changedFiles = listOf("dependency/File.kt")
+        )
+
         val metadata = ProjectMetadata(
             name = "test-project",
             fullyQualifiedName = ":test-project",
-            dependencyNames = listOf(":common-lib", ":utils")
+            dependencies = listOf(dependency),
+            changedFiles = emptyList()
         )
 
-        // then
-        metadata.hasDependency(":common-lib") shouldBe true
-        metadata.hasDependency(":utils") shouldBe true
+        // then - should return true because dependency has changes
+        metadata.hasChanges() shouldBe true
     }
 
-    test("hasDependency returns false when project does not depend on given project") {
+    test("hasChanges returns true when transitive dependency has changes") {
         // given
+        val nestedDep = ProjectMetadata(
+            name = "nested-dep",
+            fullyQualifiedName = ":nested-dep",
+            changedFiles = listOf("nested/File.kt")
+        )
+
+        val dependency = ProjectMetadata(
+            name = "dependency",
+            fullyQualifiedName = ":dependency",
+            dependencies = listOf(nestedDep),
+            changedFiles = emptyList()
+        )
+
         val metadata = ProjectMetadata(
             name = "test-project",
             fullyQualifiedName = ":test-project",
-            dependencyNames = listOf(":common-lib")
+            dependencies = listOf(dependency),
+            changedFiles = emptyList()
+        )
+
+        // then - should return true because transitive dependency has changes
+        metadata.hasChanges() shouldBe true
+    }
+
+    test("hasDirectChanges returns true only for direct changes") {
+        // given
+        val dependency = ProjectMetadata(
+            name = "dependency",
+            fullyQualifiedName = ":dependency",
+            changedFiles = listOf("dependency/File.kt")
+        )
+
+        val metadata = ProjectMetadata(
+            name = "test-project",
+            fullyQualifiedName = ":test-project",
+            dependencies = listOf(dependency),
+            changedFiles = emptyList()
         )
 
         // then
-        metadata.hasDependency(":other-lib") shouldBe false
+        metadata.hasChanges() shouldBe true  // dependency has changes
+        metadata.hasDirectChanges() shouldBe false  // but no direct changes
     }
 
     test("toString includes dependency count and file count") {
         // given
+        val dep1 = ProjectMetadata("dep1", ":dep1")
+        val dep2 = ProjectMetadata("dep2", ":dep2")
+
         val metadata = ProjectMetadata(
             name = "test-project",
             fullyQualifiedName = ":test-project",
-            dependencyNames = listOf(":dep1", ":dep2"),
+            dependencies = listOf(dep1, dep2),
             changedFiles = listOf("file1.kt", "file2.kt", "file3.kt")
         )
 

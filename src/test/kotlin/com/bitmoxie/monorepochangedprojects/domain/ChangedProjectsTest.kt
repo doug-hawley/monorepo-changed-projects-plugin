@@ -2,7 +2,6 @@ package com.bitmoxie.monorepochangedprojects.domain
 
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
-import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.collections.shouldContainAll
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
@@ -13,8 +12,8 @@ class ChangedProjectsTest : FunSpec({
     test("getChangedProjects returns names of projects with direct changes and dependents") {
         // given
         val commonLib = ProjectMetadata("common-lib", ":common-lib", changedFiles = listOf("file1.kt"))
-        val service = ProjectMetadata("service", ":service", dependencyNames = listOf(":common-lib"))
-        val app = ProjectMetadata("app", ":app", dependencyNames = listOf(":service"))
+        val service = ProjectMetadata("service", ":service", dependencies = listOf(commonLib))
+        val app = ProjectMetadata("app", ":app", dependencies = listOf(service))
 
         val projects = listOf(commonLib, service, app)
         val changedProjects = ChangedProjects(projects)
@@ -30,7 +29,7 @@ class ChangedProjectsTest : FunSpec({
     test("getChangedProjectPaths returns fully qualified paths of affected projects") {
         // given
         val lib = ProjectMetadata("lib", ":libs:lib", changedFiles = listOf("file1.kt"))
-        val service = ProjectMetadata("service", ":services:service", dependencyNames = listOf(":libs:lib"))
+        val service = ProjectMetadata("service", ":services:service", dependencies = listOf(lib))
 
         val projects = listOf(lib, service)
         val changedProjects = ChangedProjects(projects)
@@ -46,7 +45,7 @@ class ChangedProjectsTest : FunSpec({
     test("getChangedProjectCount returns count of affected projects") {
         // given
         val lib = ProjectMetadata("lib", ":lib", changedFiles = listOf("file1.kt"))
-        val serviceA = ProjectMetadata("service-a", ":service-a", dependencyNames = listOf(":lib"))
+        val serviceA = ProjectMetadata("service-a", ":service-a", dependencies = listOf(lib))
         val serviceB = ProjectMetadata("service-b", ":service-b")
 
         val projects = listOf(lib, serviceA, serviceB)
@@ -237,8 +236,8 @@ class ChangedProjectsTest : FunSpec({
     test("getProjectsDependingOn returns projects that depend on given project") {
         // given
         val commonLib = ProjectMetadata("common-lib", ":common-lib", changedFiles = listOf("file1.kt"))
-        val serviceA = ProjectMetadata("service-a", ":service-a", dependencyNames = listOf(":common-lib"))
-        val serviceB = ProjectMetadata("service-b", ":service-b", dependencyNames = listOf(":common-lib"))
+        val serviceA = ProjectMetadata("service-a", ":service-a", dependencies = listOf(commonLib))
+        val serviceB = ProjectMetadata("service-b", ":service-b", dependencies = listOf(commonLib))
         val serviceC = ProjectMetadata("service-c", ":service-c")
 
         val projects = listOf(commonLib, serviceA, serviceB, serviceC)
@@ -255,8 +254,8 @@ class ChangedProjectsTest : FunSpec({
     test("getProjectsDependingOn finds transitive dependencies") {
         // given
         val baseLib = ProjectMetadata("base-lib", ":base-lib")
-        val commonLib = ProjectMetadata("common-lib", ":common-lib", dependencyNames = listOf(":base-lib"))
-        val service = ProjectMetadata("service", ":service", dependencyNames = listOf(":common-lib"))
+        val commonLib = ProjectMetadata("common-lib", ":common-lib", dependencies = listOf(baseLib))
+        val service = ProjectMetadata("service", ":service", dependencies = listOf(commonLib))
 
         val projects = listOf(baseLib, commonLib, service)
         val changedProjects = ChangedProjects(projects)
@@ -287,7 +286,7 @@ class ChangedProjectsTest : FunSpec({
     test("getSummary returns correct summary") {
         // given
         val lib = ProjectMetadata("lib", ":lib", changedFiles = listOf("file1.kt", "file2.kt"))
-        val service = ProjectMetadata("service", ":service", dependencyNames = listOf(":lib"))
+        val service = ProjectMetadata("service", ":service", dependencies = listOf(lib))
         val standalone = ProjectMetadata("standalone", ":standalone", changedFiles = listOf("file3.kt"))
 
         val projects = listOf(lib, service, standalone)
@@ -338,7 +337,7 @@ class ChangedProjectsTest : FunSpec({
     test("getChangedProjectsWithPrefix returns affected projects matching prefix") {
         // given
         val lib = ProjectMetadata("lib1", ":libs:lib1", changedFiles = listOf("file1.kt"))
-        val app1 = ProjectMetadata("app1", ":apps:app1", dependencyNames = listOf(":libs:lib1"))
+        val app1 = ProjectMetadata("app1", ":apps:app1", dependencies = listOf(lib))
         val app2 = ProjectMetadata("app2", ":apps:app2", changedFiles = listOf("file2.kt"))
         val service = ProjectMetadata("api", ":services:api", changedFiles = listOf("file3.kt"))
 

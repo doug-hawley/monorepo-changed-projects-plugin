@@ -1,5 +1,6 @@
 package com.bitmoxie.monorepochangedprojects
 
+import com.bitmoxie.monorepochangedprojects.git.GitCommandExecutor
 import org.gradle.api.logging.Logger
 import java.io.File
 

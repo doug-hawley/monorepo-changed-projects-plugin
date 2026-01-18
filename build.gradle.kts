@@ -21,6 +21,7 @@ dependencies {
 
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
+    outputs.upToDateWhen { false }
 }
 
 gradlePlugin {

@@ -15,9 +15,13 @@ class ProjectMetadataFactory(private val logger: Logger) {
      * Each ProjectMetadata includes its dependencies as a list of other ProjectMetadata objects.
      *
      * @param rootProject The root Gradle project
+     * @param changedFilesMap Optional map of project paths to their changed files
      * @return Map of project paths to ProjectMetadata objects
      */
-    fun buildProjectMetadataMap(rootProject: Project): Map<String, ProjectMetadata> {
+    fun buildProjectMetadataMap(
+        rootProject: Project,
+        changedFilesMap: Map<String, List<String>> = emptyMap()
+    ): Map<String, ProjectMetadata> {
         val metadataMap = mutableMapOf<String, ProjectMetadata>()
         val projectMap = mutableMapOf<String, Project>()
 
@@ -28,7 +32,7 @@ class ProjectMetadataFactory(private val logger: Logger) {
 
         // Build metadata recursively for each project
         projectMap.forEach { (path, project) ->
-            buildMetadataRecursively(project, projectMap, metadataMap)
+            buildMetadataRecursively(project, projectMap, metadataMap, changedFilesMap)
         }
 
         return metadataMap
@@ -40,7 +44,8 @@ class ProjectMetadataFactory(private val logger: Logger) {
     private fun buildMetadataRecursively(
         project: Project,
         projectMap: Map<String, Project>,
-        metadataMap: MutableMap<String, ProjectMetadata>
+        metadataMap: MutableMap<String, ProjectMetadata>,
+        changedFilesMap: Map<String, List<String>>
     ): ProjectMetadata {
         // Return cached metadata if already built
         metadataMap[project.path]?.let {
@@ -50,22 +55,28 @@ class ProjectMetadataFactory(private val logger: Logger) {
         // Find dependency paths
         val dependencyPaths = findProjectDependencies(project)
 
-        // Recursively build metadata for each dependency
-        val dependencyMetadataList = dependencyPaths.mapNotNull { depPath ->
-            projectMap[depPath]?.let { depProject ->
-                buildMetadataRecursively(depProject, projectMap, metadataMap)
-            }
-        }
+        // Get changed files for this project
+        val changedFiles = changedFilesMap[project.path] ?: emptyList()
 
-        // Create metadata with dependencies
+        // Create metadata with dependency names (not nested objects)
         val metadata = ProjectMetadata(
             name = project.name,
             fullyQualifiedName = project.path,
-            dependencies = dependencyMetadataList
+            dependencyNames = dependencyPaths.toList(),
+            changedFiles = changedFiles
         )
 
         // Cache the metadata
         metadataMap[project.path] = metadata
+
+        // Recursively build metadata for dependencies to populate the cache
+        dependencyPaths.forEach { depPath ->
+            projectMap[depPath]?.let { depProject ->
+                if (!metadataMap.containsKey(depPath)) {
+                    buildMetadataRecursively(depProject, projectMap, metadataMap, changedFilesMap)
+                }
+            }
+        }
 
         return metadata
     }
@@ -74,14 +85,19 @@ class ProjectMetadataFactory(private val logger: Logger) {
      * Builds a ProjectMetadata tree for a specific project.
      *
      * @param project The Gradle project to build metadata for
+     * @param changedFilesMap Optional map of project paths to their changed files
      * @return ProjectMetadata for the specified project
      */
-    fun buildProjectMetadata(project: Project): ProjectMetadata {
-        val metadataMap = buildProjectMetadataMap(project.rootProject)
+    fun buildProjectMetadata(
+        project: Project,
+        changedFilesMap: Map<String, List<String>> = emptyMap()
+    ): ProjectMetadata {
+        val metadataMap = buildProjectMetadataMap(project.rootProject, changedFilesMap)
         return metadataMap[project.path] ?: ProjectMetadata(
             name = project.name,
             fullyQualifiedName = project.path,
-            dependencies = emptyList()
+            dependencyNames = emptyList(),
+            changedFiles = changedFilesMap[project.path] ?: emptyList()
         )
     }
 

@@ -24,7 +24,7 @@ class ProjectMetadataFactoryTest : FunSpec({
         rootMetadata shouldNotBe null
         rootMetadata!!.name shouldBe rootProject.name
         rootMetadata.fullyQualifiedName shouldBe ":"
-        rootMetadata.dependencies shouldHaveSize 0
+        rootMetadata.dependencyNames shouldHaveSize 0
     }
 
     test("should build metadata for project with single subproject") {
@@ -81,9 +81,8 @@ class ProjectMetadataFactoryTest : FunSpec({
 
         val serviceMetadata = metadataMap[":service"]
         serviceMetadata shouldNotBe null
-        serviceMetadata!!.dependencies shouldHaveSize 1
-        serviceMetadata.dependencies[0].name shouldBe "common-lib"
-        serviceMetadata.dependencies[0].fullyQualifiedName shouldBe ":common-lib"
+        serviceMetadata!!.dependencyNames shouldHaveSize 1
+        serviceMetadata.dependencyNames shouldContain ":common-lib"
     }
 
     test("should build metadata with transitive dependencies") {
@@ -120,13 +119,13 @@ class ProjectMetadataFactoryTest : FunSpec({
 
         val userServiceMetadata = metadataMap[":user-service"]
         userServiceMetadata shouldNotBe null
-        userServiceMetadata!!.dependencies shouldHaveSize 1
-        userServiceMetadata.dependencies[0].fullyQualifiedName shouldBe ":common-lib"
+        userServiceMetadata!!.dependencyNames shouldHaveSize 1
+        userServiceMetadata.dependencyNames shouldContain ":common-lib"
 
         val adminUiMetadata = metadataMap[":admin-ui"]
         adminUiMetadata shouldNotBe null
-        adminUiMetadata!!.dependencies shouldHaveSize 1
-        adminUiMetadata.dependencies[0].fullyQualifiedName shouldBe ":user-service"
+        adminUiMetadata!!.dependencyNames shouldHaveSize 1
+        adminUiMetadata.dependencyNames shouldContain ":user-service"
     }
 
     test("should build metadata with multiple dependencies") {
@@ -170,11 +169,9 @@ class ProjectMetadataFactoryTest : FunSpec({
 
         val apiGatewayMetadata = metadataMap[":api-gateway"]
         apiGatewayMetadata shouldNotBe null
-        apiGatewayMetadata!!.dependencies shouldHaveSize 2
-
-        val dependencyNames = apiGatewayMetadata.dependencies.map { it.name }
-        dependencyNames shouldContain "user-api"
-        dependencyNames shouldContain "order-api"
+        apiGatewayMetadata!!.dependencyNames shouldHaveSize 2
+        apiGatewayMetadata.dependencyNames shouldContain ":user-api"
+        apiGatewayMetadata.dependencyNames shouldContain ":order-api"
     }
 
     test("should build single project metadata") {
@@ -202,8 +199,8 @@ class ProjectMetadataFactoryTest : FunSpec({
         // then
         serviceMetadata.name shouldBe "service"
         serviceMetadata.fullyQualifiedName shouldBe ":service"
-        serviceMetadata.dependencies shouldHaveSize 1
-        serviceMetadata.dependencies[0].name shouldBe "common-lib"
+        serviceMetadata.dependencyNames shouldHaveSize 1
+        serviceMetadata.dependencyNames shouldContain ":common-lib"
     }
 
     test("should handle project with no dependencies") {
@@ -225,10 +222,10 @@ class ProjectMetadataFactoryTest : FunSpec({
         // then
         val standaloneMetadata = metadataMap[":standalone"]
         standaloneMetadata shouldNotBe null
-        standaloneMetadata!!.dependencies shouldHaveSize 0
+        standaloneMetadata!!.dependencyNames shouldHaveSize 0
     }
 
-    test("should use findDependencyByName to locate dependency") {
+    test("should list all dependency names") {
         // given
         val rootProject = ProjectBuilder.builder().build()
         val libA = ProjectBuilder.builder()
@@ -260,16 +257,12 @@ class ProjectMetadataFactoryTest : FunSpec({
 
         // then
         serviceMetadata shouldNotBe null
-        val foundLibA = serviceMetadata!!.findDependencyByName("lib-a")
-        foundLibA shouldNotBe null
-        foundLibA!!.fullyQualifiedName shouldBe ":lib-a"
-
-        val foundLibB = serviceMetadata.findDependencyByName("lib-b")
-        foundLibB shouldNotBe null
-        foundLibB!!.fullyQualifiedName shouldBe ":lib-b"
+        serviceMetadata!!.dependencyNames shouldHaveSize 2
+        serviceMetadata.dependencyNames shouldContain ":lib-a"
+        serviceMetadata.dependencyNames shouldContain ":lib-b"
     }
 
-    test("should use findDependencyRecursively to locate transitive dependency") {
+    test("should check if project has specific dependency") {
         // given
         val rootProject = ProjectBuilder.builder().build()
         val commonLib = ProjectBuilder.builder()
@@ -298,15 +291,219 @@ class ProjectMetadataFactoryTest : FunSpec({
         // when
         val metadataMap = factory.buildProjectMetadataMap(rootProject)
         val adminUiMetadata = metadataMap[":admin-ui"]
+        val userServiceMetadata = metadataMap[":user-service"]
 
         // then
         adminUiMetadata shouldNotBe null
-        val foundCommonLib = adminUiMetadata!!.findDependencyRecursively("common-lib")
-        foundCommonLib shouldNotBe null
-        foundCommonLib!!.fullyQualifiedName shouldBe ":common-lib"
+        adminUiMetadata!!.hasDependency(":user-service") shouldBe true
+        adminUiMetadata.hasDependency(":common-lib") shouldBe false // Not direct dependency
 
-        val foundUserService = adminUiMetadata.findDependencyRecursively("user-service")
-        foundUserService shouldNotBe null
-        foundUserService!!.fullyQualifiedName shouldBe ":user-service"
+        userServiceMetadata shouldNotBe null
+        userServiceMetadata!!.hasDependency(":common-lib") shouldBe true
+    }
+
+    test("should build metadata with empty changed files when no map provided") {
+        // given
+        val rootProject = ProjectBuilder.builder().build()
+        val service = ProjectBuilder.builder()
+            .withParent(rootProject)
+            .withName("service")
+            .build()
+
+        service.pluginManager.apply("java-library")
+
+        val logger = rootProject.logger
+        val factory = ProjectMetadataFactory(logger)
+
+        // when
+        val metadataMap = factory.buildProjectMetadataMap(rootProject)
+
+        // then
+        val serviceMetadata = metadataMap[":service"]
+        serviceMetadata shouldNotBe null
+        serviceMetadata!!.changedFiles shouldHaveSize 0
+        serviceMetadata.hasChanges() shouldBe false
+    }
+
+    test("should build metadata with changed files when map provided") {
+        // given
+        val rootProject = ProjectBuilder.builder().build()
+        val service = ProjectBuilder.builder()
+            .withParent(rootProject)
+            .withName("service")
+            .build()
+
+        service.pluginManager.apply("java-library")
+
+        val logger = rootProject.logger
+        val factory = ProjectMetadataFactory(logger)
+
+        val changedFilesMap = mapOf(
+            ":service" to listOf("src/main/Service.kt", "build.gradle.kts")
+        )
+
+        // when
+        val metadataMap = factory.buildProjectMetadataMap(rootProject, changedFilesMap)
+
+        // then
+        val serviceMetadata = metadataMap[":service"]
+        serviceMetadata shouldNotBe null
+        serviceMetadata!!.changedFiles shouldHaveSize 2
+        serviceMetadata.changedFiles shouldContain "src/main/Service.kt"
+        serviceMetadata.changedFiles shouldContain "build.gradle.kts"
+        serviceMetadata.hasChanges() shouldBe true
+    }
+
+    test("should build metadata with changed files for multiple projects") {
+        // given
+        val rootProject = ProjectBuilder.builder().build()
+        val libA = ProjectBuilder.builder()
+            .withParent(rootProject)
+            .withName("lib-a")
+            .build()
+        val libB = ProjectBuilder.builder()
+            .withParent(rootProject)
+            .withName("lib-b")
+            .build()
+
+        libA.pluginManager.apply("java-library")
+        libB.pluginManager.apply("java-library")
+
+        val logger = rootProject.logger
+        val factory = ProjectMetadataFactory(logger)
+
+        val changedFilesMap = mapOf(
+            ":lib-a" to listOf("lib-a/FileA.kt"),
+            ":lib-b" to listOf("lib-b/FileB1.kt", "lib-b/FileB2.kt")
+        )
+
+        // when
+        val metadataMap = factory.buildProjectMetadataMap(rootProject, changedFilesMap)
+
+        // then
+        val libAMetadata = metadataMap[":lib-a"]
+        libAMetadata shouldNotBe null
+        libAMetadata!!.changedFiles shouldHaveSize 1
+        libAMetadata.changedFiles shouldContain "lib-a/FileA.kt"
+        libAMetadata.hasChanges() shouldBe true
+
+        val libBMetadata = metadataMap[":lib-b"]
+        libBMetadata shouldNotBe null
+        libBMetadata!!.changedFiles shouldHaveSize 2
+        libBMetadata.changedFiles shouldContain "lib-b/FileB1.kt"
+        libBMetadata.changedFiles shouldContain "lib-b/FileB2.kt"
+        libBMetadata.hasChanges() shouldBe true
+    }
+
+    test("should build single project metadata with changed files") {
+        // given
+        val rootProject = ProjectBuilder.builder().build()
+        val service = ProjectBuilder.builder()
+            .withParent(rootProject)
+            .withName("service")
+            .build()
+
+        service.pluginManager.apply("java-library")
+
+        val logger = rootProject.logger
+        val factory = ProjectMetadataFactory(logger)
+
+        val changedFilesMap = mapOf(
+            ":service" to listOf("src/main/Service.kt", "src/test/ServiceTest.kt")
+        )
+
+        // when
+        val serviceMetadata = factory.buildProjectMetadata(service, changedFilesMap)
+
+        // then
+        serviceMetadata.name shouldBe "service"
+        serviceMetadata.fullyQualifiedName shouldBe ":service"
+        serviceMetadata.changedFiles shouldHaveSize 2
+        serviceMetadata.changedFiles shouldContain "src/main/Service.kt"
+        serviceMetadata.changedFiles shouldContain "src/test/ServiceTest.kt"
+        serviceMetadata.hasChanges() shouldBe true
+    }
+
+    test("should preserve changed files in dependencies") {
+        // given
+        val rootProject = ProjectBuilder.builder().build()
+        val commonLib = ProjectBuilder.builder()
+            .withParent(rootProject)
+            .withName("common-lib")
+            .build()
+        val service = ProjectBuilder.builder()
+            .withParent(rootProject)
+            .withName("service")
+            .build()
+
+        commonLib.pluginManager.apply("java-library")
+        service.pluginManager.apply("java-library")
+        service.dependencies.add("implementation", commonLib)
+
+        val logger = rootProject.logger
+        val factory = ProjectMetadataFactory(logger)
+
+        val changedFilesMap = mapOf(
+            ":common-lib" to listOf("common-lib/Utils.kt"),
+            ":service" to listOf("service/Service.kt")
+        )
+
+        // when
+        val metadataMap = factory.buildProjectMetadataMap(rootProject, changedFilesMap)
+
+        // then
+        val serviceMetadata = metadataMap[":service"]
+        serviceMetadata shouldNotBe null
+        serviceMetadata!!.changedFiles shouldHaveSize 1
+        serviceMetadata.changedFiles shouldContain "service/Service.kt"
+        serviceMetadata.hasChanges() shouldBe true
+
+        // Check dependency has its own changed files by looking up in metadata map
+        val commonLibMetadata = metadataMap[":common-lib"]
+        commonLibMetadata shouldNotBe null
+        commonLibMetadata!!.changedFiles shouldHaveSize 1
+        commonLibMetadata.changedFiles shouldContain "common-lib/Utils.kt"
+        commonLibMetadata.hasChanges() shouldBe true
+
+        // Verify service has dependency reference
+        serviceMetadata.dependencyNames shouldContain ":common-lib"
+    }
+
+    test("should handle projects with no changes in changed files map") {
+        // given
+        val rootProject = ProjectBuilder.builder().build()
+        val serviceA = ProjectBuilder.builder()
+            .withParent(rootProject)
+            .withName("service-a")
+            .build()
+        val serviceB = ProjectBuilder.builder()
+            .withParent(rootProject)
+            .withName("service-b")
+            .build()
+
+        serviceA.pluginManager.apply("java-library")
+        serviceB.pluginManager.apply("java-library")
+
+        val logger = rootProject.logger
+        val factory = ProjectMetadataFactory(logger)
+
+        val changedFilesMap = mapOf(
+            ":service-a" to listOf("service-a/File.kt")
+            // service-b not in map
+        )
+
+        // when
+        val metadataMap = factory.buildProjectMetadataMap(rootProject, changedFilesMap)
+
+        // then
+        val serviceAMetadata = metadataMap[":service-a"]
+        serviceAMetadata shouldNotBe null
+        serviceAMetadata!!.changedFiles shouldHaveSize 1
+        serviceAMetadata.hasChanges() shouldBe true
+
+        val serviceBMetadata = metadataMap[":service-b"]
+        serviceBMetadata shouldNotBe null
+        serviceBMetadata!!.changedFiles shouldHaveSize 0
+        serviceBMetadata.hasChanges() shouldBe false
     }
 })

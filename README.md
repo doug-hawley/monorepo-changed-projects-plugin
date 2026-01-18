@@ -73,6 +73,93 @@ tasks.register("customTask") {
 }
 ```
 
+### Access changed files metadata
+
+The plugin also provides detailed metadata including the list of changed files per project:
+
+```kotlin
+tasks.register("showChangedFiles") {
+    dependsOn("detectChangedProjects")
+    doLast {
+        // Get the map of changed files per project
+        val changedFilesMap = project.extensions.extraProperties.get("changedFilesMap") as Map<String, List<String>>
+        
+        changedFilesMap.forEach { (projectPath, files) ->
+            println("Project $projectPath has ${files.size} changed files:")
+            files.forEach { file ->
+                println("  - $file")
+            }
+        }
+        
+        // Get enhanced metadata with dependencies and changed files
+        val metadataMap = project.extensions.extraProperties.get("changedProjectsMetadata") as Map<String, com.bitmoxie.monorepochangedprojects.domain.ProjectMetadata>
+        
+        metadataMap.values.forEach { metadata ->
+            if (metadata.changedFiles.isNotEmpty()) {
+                println("${metadata.fullyQualifiedName}: ${metadata.changedFiles.size} files changed")
+                println("  Dependencies: ${metadata.dependencyNames}")
+            }
+        }
+    }
+}
+```
+
+### Use ChangedProjects domain object
+
+The plugin provides a `ChangedProjects` domain object for convenient access to changed project information:
+
+```kotlin
+import com.bitmoxie.monorepochangedprojects.domain.ChangedProjects
+import com.bitmoxie.monorepochangedprojects.domain.ProjectMetadata
+
+tasks.register("analyzeWithChangedProjects") {
+    dependsOn("detectChangedProjects")
+    doLast {
+        val metadataMap = project.extensions.extraProperties
+            .get("changedProjectsMetadata") as Map<String, ProjectMetadata>
+        
+        // Create ChangedProjects wrapper
+        val changedProjects = ChangedProjects(metadataMap.values.toList())
+        
+        // Get simple list of changed project names
+        println("Changed projects: ${changedProjects.getChangedProjects()}")
+        
+        // Get count
+        println("Total changed: ${changedProjects.getChangedProjectCount()} of ${changedProjects.getAllProjects().size}")
+        
+        // Check if any changes exist
+        if (changedProjects.hasAnyChanges()) {
+            println("Changes detected!")
+            
+            // Get summary
+            val summary = changedProjects.getSummary()
+            println(summary)
+            
+            // Get file counts per project
+            changedProjects.getChangedFileCountByProject().forEach { (project, count) ->
+                println("$project: $count files")
+            }
+            
+            // Find projects depending on a changed project
+            changedProjects.getChangedProjects().forEach { projectName ->
+                val dependents = changedProjects.getProjectsDependingOn(projectName)
+                if (dependents.isNotEmpty()) {
+                    println("Projects depending on $projectName: ${dependents.map { it.name }}")
+                }
+            }
+            
+            // Filter changed projects by prefix (e.g., all apps)
+            val changedApps = changedProjects.getChangedProjectsWithPrefix(":apps")
+            println("Changed apps: ${changedApps.map { it.name }}")
+            
+            // Or just get the names
+            val changedAppNames = changedProjects.getChangedProjectNamesWithPrefix(":apps")
+            println("Changed app names: $changedAppNames")
+        }
+    }
+}
+```
+
 ## Examples
 
 ### Multi-module project usage
@@ -132,6 +219,44 @@ tasks.register("ciTest") {
                     }
                 }
             }
+        }
+    }
+}
+```
+
+### Build Only Changed Apps
+
+Use prefix filtering to build only changed applications:
+
+```kotlin
+import com.bitmoxie.monorepochangedprojects.domain.ChangedProjects
+import com.bitmoxie.monorepochangedprojects.domain.ProjectMetadata
+
+tasks.register("buildChangedApps") {
+    dependsOn("detectChangedProjects")
+    doLast {
+        val metadataMap = project.extensions.extraProperties
+            .get("changedProjectsMetadata") as Map<String, ProjectMetadata>
+        
+        val changedProjects = ChangedProjects(metadataMap.values.toList())
+        
+        // Get only changed apps (assuming apps are under :apps directory)
+        val changedApps = changedProjects.getChangedProjectPathsWithPrefix(":apps")
+        
+        if (changedApps.isEmpty()) {
+            println("No app changes detected")
+        } else {
+            println("Building ${changedApps.size} changed apps...")
+            changedApps.forEach { appPath ->
+                println("Building $appPath")
+                exec {
+                    commandLine("./gradlew", "$appPath:build")
+                }
+            }
+        }
+    }
+}
+```
         }
     }
 }

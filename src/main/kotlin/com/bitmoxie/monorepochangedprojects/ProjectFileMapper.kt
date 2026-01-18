@@ -15,7 +15,18 @@ class ProjectFileMapper {
      * @return Set of project paths that contain changed files
      */
     fun findProjectsWithChangedFiles(rootProject: Project, changedFiles: Set<String>): Set<String> {
-        val affectedProjects = mutableSetOf<String>()
+        return mapChangedFilesToProjects(rootProject, changedFiles).keys
+    }
+
+    /**
+     * Maps changed files to their containing Gradle projects.
+     *
+     * @param rootProject The root Gradle project
+     * @param changedFiles Set of changed file paths relative to root
+     * @return Map of project paths to lists of changed files in that project
+     */
+    fun mapChangedFilesToProjects(rootProject: Project, changedFiles: Set<String>): Map<String, List<String>> {
+        val projectToFilesMap = mutableMapOf<String, MutableList<String>>()
 
         rootProject.allprojects.forEach { subproject ->
             val projectPath = subproject.projectDir.relativeTo(rootProject.rootDir).path
@@ -25,12 +36,12 @@ class ProjectFileMapper {
 
             changedFiles.forEach { file ->
                 if (isFileInProject(file, normalizedProjectPath, rootProject)) {
-                    affectedProjects.add(subproject.path)
+                    projectToFilesMap.getOrPut(subproject.path) { mutableListOf() }.add(file)
                 }
             }
         }
 
-        return affectedProjects
+        return projectToFilesMap
     }
 
     private fun isFileInProject(file: String, normalizedProjectPath: String, rootProject: Project): Boolean {

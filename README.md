@@ -56,6 +56,19 @@ projectsChanged {
 ./gradlew detectChangedProjects
 ```
 
+### Build only changed projects
+
+The plugin provides a convenient task to automatically build only the projects that have been affected by changes:
+
+```bash
+./gradlew buildChangedProjects
+```
+
+This task will:
+1. Detect all changed projects (including those affected by dependency changes)
+2. Build each affected project automatically
+3. Report which projects were built
+
 ### Access changed projects in other tasks
 
 ```kotlin

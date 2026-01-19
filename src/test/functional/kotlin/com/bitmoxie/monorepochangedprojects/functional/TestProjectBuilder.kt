@@ -1,0 +1,261 @@
+package com.bitmoxie.monorepochangedprojects.functional
+
+import org.gradle.testkit.runner.BuildResult
+import org.gradle.testkit.runner.GradleRunner
+import java.io.File
+
+/**
+ * Builder for creating test Gradle projects for functional testing.
+ */
+class TestProjectBuilder(private val projectDir: File) {
+    private val subprojects = mutableListOf<SubprojectConfig>()
+    private var pluginApplied = false
+    private var useRemote = false
+    private var remoteDir: File? = null
+
+    data class SubprojectConfig(
+        val name: String,
+        val dependencies: List<String> = emptyList()
+    )
+
+    fun withSubproject(name: String, dependsOn: List<String> = emptyList()): TestProjectBuilder {
+        subprojects.add(SubprojectConfig(name, dependsOn))
+        return this
+    }
+
+    fun applyPlugin(pluginId: String = "com.bitmoxie.monorepo-changed-projects"): TestProjectBuilder {
+        pluginApplied = true
+        return this
+    }
+
+    fun withRemote(): TestProjectBuilder {
+        useRemote = true
+        return this
+    }
+
+    fun build(): TestProject {
+        // Create root build.gradle.kts
+        val baseBranch = if (useRemote) "origin/main" else "HEAD"
+        val rootBuild = if (pluginApplied) {
+            """
+            plugins {
+                id("com.bitmoxie.monorepo-changed-projects")
+            }
+            
+            projectsChanged {
+                baseBranch = "$baseBranch"
+                includeUntracked = true
+            }
+            """.trimIndent()
+        } else {
+            ""
+        }
+
+        File(projectDir, "build.gradle.kts").writeText(rootBuild)
+
+        // Create .gitignore to exclude build artifacts
+        val gitignoreContent = """
+            .gradle/
+            build/
+            *.iml
+            .idea/
+            out/
+        """.trimIndent()
+        File(projectDir, ".gitignore").writeText(gitignoreContent)
+
+        // Create settings.gradle.kts
+        val settingsContent = buildString {
+            appendLine("rootProject.name = \"test-project\"")
+            subprojects.forEach { subproject ->
+                appendLine("include(\":${subproject.name}\")")
+            }
+        }
+        File(projectDir, "settings.gradle.kts").writeText(settingsContent)
+
+        // Create each subproject
+        subprojects.forEach { subproject ->
+            val subprojectDir = File(projectDir, subproject.name)
+            subprojectDir.mkdirs()
+
+            // Create build.gradle.kts with dependencies
+            val buildContent = buildString {
+                appendLine("plugins {")
+                appendLine("    kotlin(\"jvm\") version \"1.9.0\"")
+                appendLine("}")
+                appendLine()
+                if (subproject.dependencies.isNotEmpty()) {
+                    appendLine("dependencies {")
+                    subproject.dependencies.forEach { dep ->
+                        appendLine("    implementation(project(\":$dep\"))")
+                    }
+                    appendLine("}")
+                }
+            }
+            File(subprojectDir, "build.gradle.kts").writeText(buildContent)
+
+            // Create source directory and sample file
+            val srcDir = File(subprojectDir, "src/main/kotlin/com/example")
+            srcDir.mkdirs()
+            val className = subproject.name.replaceFirstChar { it.uppercase() }
+            File(srcDir, "$className.kt").writeText(
+                """
+                package com.example
+                
+                class $className {
+                    fun doSomething() = "Hello from ${subproject.name}"
+                }
+                """.trimIndent()
+            )
+        }
+
+        // Set up remote directory if needed
+        if (useRemote) {
+            remoteDir = File(projectDir.parentFile, "${projectDir.name}-remote.git")
+        }
+
+        return TestProject(projectDir, useRemote, remoteDir)
+    }
+}
+
+/**
+ * Represents a test Gradle project with utilities for git operations and running tasks.
+ */
+class TestProject(
+    val projectDir: File,
+    private val useRemote: Boolean = false,
+    private val remoteDir: File? = null
+) {
+
+    fun initGit() {
+        if (useRemote && remoteDir != null) {
+            // Create a bare repository to act as origin
+            remoteDir.mkdirs()
+            executeCommand(remoteDir, "git", "init", "--bare")
+
+            // Initialize local repo and add remote
+            executeCommand("git", "init")
+            executeCommand("git", "config", "user.email", "test@example.com")
+            executeCommand("git", "config", "user.name", "Test User")
+            executeCommand("git", "checkout", "-b", "main")
+            executeCommand("git", "remote", "add", "origin", remoteDir.absolutePath)
+        } else {
+            // Regular local-only git repo
+            executeCommand("git", "init")
+            executeCommand("git", "config", "user.email", "test@example.com")
+            executeCommand("git", "config", "user.name", "Test User")
+            executeCommand("git", "checkout", "-b", "main")
+        }
+    }
+
+    fun commitAll(message: String) {
+        executeCommand("git", "add", ".")
+        executeCommand("git", "commit", "-m", message)
+    }
+
+    fun pushToRemote() {
+        if (useRemote) {
+            executeCommand("git", "push", "-u", "origin", "main")
+        }
+    }
+
+    fun stageFile(path: String) {
+        executeCommand("git", "add", path)
+    }
+
+    fun modifyFile(relativePath: String, content: String) {
+        val file = File(projectDir, relativePath)
+        file.parentFile.mkdirs()
+        file.writeText(content)
+    }
+
+    fun appendToFile(relativePath: String, content: String) {
+        val file = File(projectDir, relativePath)
+        if (file.exists()) {
+            file.appendText("\n$content")
+        } else {
+            file.parentFile.mkdirs()
+            file.writeText(content)
+        }
+    }
+
+    fun createNewFile(relativePath: String, content: String) {
+        val file = File(projectDir, relativePath)
+        file.parentFile.mkdirs()
+        file.writeText(content)
+    }
+
+    fun runTask(vararg tasks: String): BuildResult {
+        return GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments(tasks.toList() + "--stacktrace")
+            .withPluginClasspath()
+            .build()
+    }
+
+    fun runTaskAndFail(vararg tasks: String): BuildResult {
+        return GradleRunner.create()
+            .withProjectDir(projectDir)
+            .withArguments(tasks.toList() + "--stacktrace")
+            .withPluginClasspath()
+            .buildAndFail()
+    }
+
+    private fun executeCommand(vararg command: String) {
+        executeCommand(projectDir, *command)
+    }
+
+    private fun executeCommand(workingDir: File, vararg command: String) {
+        val process = ProcessBuilder(*command)
+            .directory(workingDir)
+            .redirectOutput(ProcessBuilder.Redirect.PIPE)
+            .redirectError(ProcessBuilder.Redirect.PIPE)
+            .start()
+
+        val exitCode = process.waitFor()
+        if (exitCode != 0) {
+            val error = process.errorStream.bufferedReader().readText()
+            throw RuntimeException("Command failed: ${command.joinToString(" ")}\n$error")
+        }
+    }
+}
+
+/**
+ * Extension functions for parsing build results.
+ */
+fun BuildResult.extractChangedProjects(): Set<String> {
+    val regex = """All affected projects \(including dependents\): (.*)""".toRegex()
+    val match = regex.find(output)
+    val projectsString = match?.groupValues?.get(1)?.trim() ?: ""
+
+    return if (projectsString.isEmpty()) {
+        emptySet()
+    } else {
+        projectsString
+            .split(", ")
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .toSet()
+    }
+}
+
+fun BuildResult.extractDirectlyChangedProjects(): Set<String> {
+    val regex = """Directly changed projects: (.*)""".toRegex()
+    val match = regex.find(output)
+    val projectsString = match?.groupValues?.get(1)?.trim() ?: ""
+
+    return if (projectsString.isEmpty()) {
+        emptySet()
+    } else {
+        projectsString
+            .split(", ")
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .toSet()
+    }
+}
+
+fun BuildResult.extractChangedFilesCount(): Int {
+    val regex = """Changed files count: (\d+)""".toRegex()
+    val match = regex.find(output)
+    return match?.groupValues?.get(1)?.toInt() ?: 0
+}

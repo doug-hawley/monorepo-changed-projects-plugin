@@ -33,14 +33,30 @@ class GitChangedFilesDetector(private val logger: Logger) {
 
         try {
             // Get changed files compared to base branch (committed changes)
-            changedFiles.addAll(getChangedFilesSinceBaseBranch(gitDir, extension.baseBranch))
+            val branchChanges = getChangedFilesSinceBaseBranch(gitDir, extension.baseBranch)
+            logger.lifecycle("Files from branch comparison: ${branchChanges.size}")
+            changedFiles.addAll(branchChanges)
+
+            // Also get uncommitted working tree changes (modified files not yet committed)
+            val workingTreeChanges = getWorkingTreeChanges(gitDir)
+            logger.lifecycle("Working tree changes: ${workingTreeChanges.size}")
+            changedFiles.addAll(workingTreeChanges)
 
             // Get staged files (files added with git add but not yet committed)
-            changedFiles.addAll(getStagedFiles(gitDir))
+            val staged = getStagedFiles(gitDir)
+            logger.lifecycle("Staged files: ${staged.size}")
+            changedFiles.addAll(staged)
 
             // Include untracked files if configured
             if (extension.includeUntracked) {
-                changedFiles.addAll(getUntrackedFiles(gitDir))
+                val untracked = getUntrackedFiles(gitDir)
+                logger.lifecycle("Untracked files: ${untracked.size}")
+                changedFiles.addAll(untracked)
+            }
+
+            logger.lifecycle("Total changed files detected: ${changedFiles.size}")
+            if (changedFiles.isNotEmpty()) {
+                logger.lifecycle("Changed files: ${changedFiles.take(5).joinToString(", ")}${if (changedFiles.size > 5) "..." else ""}")
             }
         } catch (e: Exception) {
             logger.error("Error executing git command: ${e.message}", e)
@@ -55,10 +71,37 @@ class GitChangedFilesDetector(private val logger: Logger) {
     }
 
     private fun getChangedFilesSinceBaseBranch(gitDir: File, baseBranch: String): Set<String> {
-        return gitExecutor.executeForOutput(
-            gitDir,
-            "diff", "--name-only", "origin/$baseBranch...HEAD"
-        ).toSet()
+        // Compare committed changes between base branch and HEAD
+        return try {
+            gitExecutor.executeForOutput(
+                gitDir,
+                "diff", "--name-only", "origin/$baseBranch...HEAD"
+            ).toSet()
+        } catch (e: Exception) {
+            // If origin/ doesn't work, try local branch comparison
+            try {
+                gitExecutor.executeForOutput(
+                    gitDir,
+                    "diff", "--name-only", "$baseBranch...HEAD"
+                ).toSet()
+            } catch (e2: Exception) {
+                logger.warn("Could not compare to branch $baseBranch: ${e2.message}")
+                emptySet()
+            }
+        }
+    }
+
+    private fun getWorkingTreeChanges(gitDir: File): Set<String> {
+        // Get files modified in working tree but not yet staged or committed
+        return try {
+            gitExecutor.executeForOutput(
+                gitDir,
+                "diff", "--name-only", "HEAD"
+            ).toSet()
+        } catch (e: Exception) {
+            logger.warn("Could not get working tree changes: ${e.message}")
+            emptySet()
+        }
     }
 
     private fun getStagedFiles(gitDir: File): Set<String> {

@@ -28,15 +28,24 @@ abstract class DetectChangedProjectsTask : DefaultTask() {
         val metadataMap = metadataFactory.buildProjectMetadataMap(project.rootProject, changedFilesMap)
 
         // Get all affected projects (those with changes OR dependency changes) using recursive hasChanges()
+        // Exclude the root project as it's just a container
         val allAffectedProjects = metadataMap.values
-            .filter { it.hasChanges() }
+            .filter { it.hasChanges() && it.fullyQualifiedName != ":" }
             .map { it.fullyQualifiedName }
             .toSet()
 
         logger.lifecycle("Changed files count: ${changedFiles.size}")
-        logger.lifecycle("Directly changed projects: ${directlyChangedProjects.joinToString(", ")}")
-        logger.lifecycle("All affected projects (including dependents): ${allAffectedProjects.joinToString(", ")}")
+        logger.lifecycle("Changed files count: ${changedFiles.size}")
 
+        val directlyChangedList = if (directlyChangedProjects.isEmpty()) "" else directlyChangedProjects.joinToString(", ")
+        logger.lifecycle("Directly changed projects: $directlyChangedList")
+
+        val allAffectedList = if (allAffectedProjects.isEmpty()) "" else allAffectedProjects.joinToString(", ")
+        logger.lifecycle("All affected projects (including dependents): $allAffectedList")
+
+        if (allAffectedProjects.isEmpty()) {
+            logger.lifecycle("No projects have changed")
+        }
 
         // Store results in project extra properties for other tasks to use
         project.extensions.extraProperties.set("changedProjects", allAffectedProjects)

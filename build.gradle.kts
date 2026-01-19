@@ -44,6 +44,19 @@ sourceSets {
     }
 }
 
+// Add dependencies for the test source sets
+dependencies {
+    // Unit test dependencies
+    add("unitTestImplementation", "io.kotest:kotest-runner-junit5:5.8.0")
+    add("unitTestImplementation", "io.kotest:kotest-assertions-core:5.8.0")
+    add("unitTestImplementation", "io.kotest:kotest-property:5.8.0")
+
+    // Functional test dependencies
+    add("functionalTestImplementation", gradleTestKit())
+    add("functionalTestImplementation", "io.kotest:kotest-runner-junit5:5.8.0")
+    add("functionalTestImplementation", "io.kotest:kotest-assertions-core:5.8.0")
+}
+
 // Register unit test task
 val unitTest by tasks.registering(Test::class) {
     description = "Runs unit tests"

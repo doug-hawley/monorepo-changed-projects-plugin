@@ -31,8 +31,34 @@ Unit tests focus on testing individual components in isolation:
 Functional tests verify end-to-end functionality:
 - Plugin integration tests
 - Full workflow tests
-- May use actual Gradle projects
-- Test real-world scenarios
+- Uses Gradle TestKit to create real test projects
+- Tests real-world scenarios with actual git operations
+
+**Current Functional Tests:**
+- `MonorepoPluginFunctionalTest.kt` - Tests the `detectChangedProjects` task
+  - Single library change affecting dependents
+  - Service change (not affecting dependencies)
+  - Leaf project change
+  - No changes scenario
+  - Multiple independent changes
+  - Untracked files detection
+  - Staged changes detection
+  - Build file changes
+- `BuildChangedProjectsFunctionalTest.kt` - Tests the `buildChangedProjects` task
+  - Building only affected projects
+  - No changes scenario
+  - Multiple independent changes
+  - Task dependencies
+  - Leaf project builds
+
+**Test Utilities:**
+- `TestProjectBuilder.kt` - Helper for creating test Gradle projects
+  - Programmatically builds multi-module projects
+  - Configures dependencies
+  - Initializes git repositories
+  - Provides git operations (commit, stage, modify files)
+  - Runs Gradle tasks with TestKit
+  - Parses build output for assertions
 
 ## Running Tests
 

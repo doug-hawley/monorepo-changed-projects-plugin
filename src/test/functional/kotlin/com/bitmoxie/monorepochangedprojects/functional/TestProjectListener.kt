@@ -49,7 +49,7 @@ class TestProjectListener : TestListener {
 
     /**
      * Gets the test project directory for advanced use cases.
-     * Most tests should use createStandardProject() instead.
+     * Most tests should use createStandardProject() instead.x
      */
     fun getTestProjectDir(): File {
         return currentTestDir

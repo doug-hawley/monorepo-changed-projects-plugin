@@ -15,11 +15,18 @@ class TestProjectBuilder(private val projectDir: File) {
 
     data class SubprojectConfig(
         val name: String,
-        val dependencies: List<String> = emptyList()
+        val dependencies: List<String> = emptyList(),
+        val isBom: Boolean = false,
+        val usePlatform: Boolean = false
     )
 
-    fun withSubproject(name: String, dependsOn: List<String> = emptyList()): TestProjectBuilder {
-        subprojects.add(SubprojectConfig(name, dependsOn))
+    fun withSubproject(
+        name: String,
+        dependsOn: List<String> = emptyList(),
+        isBom: Boolean = false,
+        usePlatform: Boolean = false
+    ): TestProjectBuilder {
+        subprojects.add(SubprojectConfig(name, dependsOn, isBom, usePlatform))
         return this
     }
 
@@ -83,35 +90,57 @@ class TestProjectBuilder(private val projectDir: File) {
             // Create build.gradle.kts with dependencies
             val buildContent = buildString {
                 appendLine("plugins {")
-                appendLine("    kotlin(\"jvm\") version \"1.9.0\"")
+                if (subproject.isBom) {
+                    appendLine("    `java-platform`")
+                } else {
+                    appendLine("    kotlin(\"jvm\") version \"1.9.0\"")
+                }
                 appendLine("}")
                 appendLine()
                 if (subproject.dependencies.isNotEmpty()) {
                     appendLine("dependencies {")
-                    subproject.dependencies.forEach { dep ->
-                        // Convert path to Gradle project notation
-                        val gradlePath = dep.replace("/", ":")
-                        appendLine("    implementation(project(\":$gradlePath\"))")
+
+                    // Separate platform dependencies from regular dependencies
+                    if (subproject.usePlatform) {
+                        // First dependency is the platform
+                        val platformDep = subproject.dependencies.first()
+                        val platformPath = platformDep.replace("/", ":")
+                        appendLine("    api(platform(project(\":$platformPath\")))")
+
+                        // Rest are regular dependencies
+                        subproject.dependencies.drop(1).forEach { dep ->
+                            val gradlePath = dep.replace("/", ":")
+                            appendLine("    implementation(project(\":$gradlePath\"))")
+                        }
+                    } else {
+                        // All regular dependencies
+                        subproject.dependencies.forEach { dep ->
+                            val gradlePath = dep.replace("/", ":")
+                            appendLine("    implementation(project(\":$gradlePath\"))")
+                        }
                     }
+
                     appendLine("}")
                 }
             }
             File(subprojectDir, "build.gradle.kts").writeText(buildContent)
 
-            // Create source directory and sample file
-            val srcDir = File(subprojectDir, "src/main/kotlin/com/example")
-            srcDir.mkdirs()
-            // Use just the last part of the path for the class name (e.g., "Module1" from "modules/module1")
-            val simpleClassName = subproject.name.split("/").last().replaceFirstChar { it.uppercase() }
-            File(srcDir, "$simpleClassName.kt").writeText(
-                """
+            // Create source directory and sample file (skip for BOM projects)
+            if (!subproject.isBom) {
+                val srcDir = File(subprojectDir, "src/main/kotlin/com/example")
+                srcDir.mkdirs()
+                // Use just the last part of the path for the class name (e.g., "Module1" from "modules/module1")
+                val simpleClassName = subproject.name.split("/").last().replaceFirstChar { it.uppercase() }
+                File(srcDir, "$simpleClassName.kt").writeText(
+                    """
                 package com.example
                 
                 class $simpleClassName {
                     fun doSomething() = "Hello from ${subproject.name}"
                 }
                 """.trimIndent()
-            )
+                )
+            }
         }
 
         // Set up remote directory if needed

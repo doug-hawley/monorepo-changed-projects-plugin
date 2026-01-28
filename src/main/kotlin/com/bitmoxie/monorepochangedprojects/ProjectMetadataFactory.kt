@@ -102,6 +102,7 @@ class ProjectMetadataFactory(private val logger: Logger) {
 
     /**
      * Finds all project paths that the given project depends on.
+     * This includes regular project dependencies and platform/BOM dependencies.
      *
      * @param project The project to find dependencies for
      * @return Set of project paths that are dependencies
@@ -111,11 +112,40 @@ class ProjectMetadataFactory(private val logger: Logger) {
 
         try {
             project.configurations.forEach { config ->
-                config.dependencies
-                    .filterIsInstance<ProjectDependency>()
-                    .forEach { projectDep ->
-                        dependencies.add(projectDep.dependencyProject.path)
+                try {
+                    // Get all dependencies from the configuration
+                    config.dependencies.forEach { dep ->
+                        when (dep) {
+                            is ProjectDependency -> {
+                                // Regular project dependency
+                                dependencies.add(dep.dependencyProject.path)
+                            }
+                            else -> {
+                                // Check if it's a platform dependency wrapping a ProjectDependency
+                                // Platform dependencies have a 'targetConfiguration' that may be null
+                                try {
+                                    val targetConfiguration = dep.javaClass.methods
+                                        .find { it.name == "getTargetConfiguration" }
+                                        ?.invoke(dep)
+
+                                    // Try to unwrap the project dependency from platform notation
+                                    val wrappedDep = dep.javaClass.methods
+                                        .find { it.name == "getDependency" }
+                                        ?.invoke(dep)
+
+                                    if (wrappedDep is ProjectDependency) {
+                                        dependencies.add(wrappedDep.dependencyProject.path)
+                                    }
+                                } catch (e: Exception) {
+                                    // Not a platform dependency or can't unwrap, skip
+                                }
+                            }
+                        }
                     }
+                } catch (e: Exception) {
+                    // Individual configuration might not be resolvable, skip
+                    logger.debug("Could not resolve configuration ${config.name} for ${project.path}: ${e.message}")
+                }
             }
         } catch (e: Exception) {
             // Configuration might not be available yet, skip

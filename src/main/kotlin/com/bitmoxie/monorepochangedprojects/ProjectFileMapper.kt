@@ -31,11 +31,14 @@ class ProjectFileMapper {
         rootProject.allprojects.forEach { subproject ->
             val projectPath = subproject.projectDir.relativeTo(rootProject.rootDir).path
 
-            // Normalize paths for comparison
-            val normalizedProjectPath = if (projectPath.isEmpty() || projectPath == ".") "" else "$projectPath/"
+            // Normalize path separators to forward slashes for cross-platform compatibility
+            val normalizedProjectPath = projectPath.replace('\\', '/')
+
+            // Add trailing slash for comparison
+            val normalizedProjectPathWithSlash = if (normalizedProjectPath.isEmpty() || normalizedProjectPath == ".") "" else "$normalizedProjectPath/"
 
             changedFiles.forEach { file ->
-                if (isFileInProject(file, normalizedProjectPath, rootProject)) {
+                if (isFileInProject(file, normalizedProjectPathWithSlash, rootProject)) {
                     projectToFilesMap.getOrPut(subproject.path) { mutableListOf() }.add(file)
                 }
             }
@@ -49,7 +52,7 @@ class ProjectFileMapper {
         if (normalizedProjectPath.isEmpty()) {
             // Check if file is in root and not in any subproject directory
             val isInSubproject = rootProject.subprojects.any { sub ->
-                val subPath = sub.projectDir.relativeTo(rootProject.rootDir).path
+                val subPath = sub.projectDir.relativeTo(rootProject.rootDir).path.replace('\\', '/')
                 file.startsWith("$subPath/")
             }
             return !isInSubproject

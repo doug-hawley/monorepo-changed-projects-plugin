@@ -10,7 +10,7 @@
       "include-component-in-tag": false,
       "extra-files": [
         {
-          "type": "gradle",
+          "type": "generic",
           "path": "build.gradle.kts",
           "glob": false
         }

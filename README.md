@@ -396,6 +396,35 @@ Tests are written using [Kotest](https://kotest.io/) with the FunSpec style:
 ./gradlew publishToMavenLocal
 ```
 
+## Contributing
+
+This project uses [Release Please](https://github.com/googleapis/release-please) for automated releases and [Conventional Commits](https://www.conventionalcommits.org/) for commit messages.
+
+Please read [RELEASE_PLEASE_GUIDE.md](RELEASE_PLEASE_GUIDE.md) for detailed information on:
+- Conventional commit format
+- How releases are automated
+- Version bumping strategies
+- Publishing workflow
+
+### Quick Start
+
+When making commits, use conventional commit format:
+
+```bash
+# Feature addition (bumps MINOR version)
+git commit -m "feat: add new feature"
+
+# Bug fix (bumps PATCH version)
+git commit -m "fix: resolve issue"
+
+# Breaking change (bumps MAJOR version)
+git commit -m "feat!: breaking change
+
+BREAKING CHANGE: This removes support for X"
+```
+
 ## License
 
 MIT License
+
+

@@ -7,8 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Release automation** - Integrated Release Please for automated releases based on Conventional Commits
+- `RELEASE_PLEASE_GUIDE.md` - Comprehensive guide for using Release Please and Conventional Commits
+- `.github/workflows/release-please.yml` - GitHub Action workflow for automated releases
+- `release-please-config.json` - Release Please configuration
+- `.release-please-manifest.json` - Version tracking for Release Please
+
 ### Changed
 - **Updated dependencies** - Updated Kotest from 5.8.0 to 5.9.1 and Gradle wrapper from 8.5 to 8.12
+- **CI configuration** - Removed Java 11 support (now supporting Java 17 and 21 only)
+- **CI configuration** - Removed Windows runners temporarily (now testing on Ubuntu and macOS only)
 
 ### Fixed
 - **Windows path separator compatibility** - Fixed `ProjectFileMapper` to normalize path separators on Windows, ensuring nested projects like `:apps:app2` are correctly identified instead of just their parent directory `:apps`

@@ -13,15 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `.github/workflows/release-please.yml` - GitHub Action workflow for automated releases
 - `release-please-config.json` - Release Please configuration
 - `.release-please-manifest.json` - Version tracking for Release Please
+- **Gradle Plugin Publish plugin** - Added `com.gradle.plugin-publish` plugin (v1.3.0) for compliance with modern Gradle plugin development practices and Plugin Portal publishing
 
 ### Changed
 - **Updated dependencies** - Updated Kotest from 5.8.0 to 5.9.1 and Gradle wrapper from 8.5 to 8.12
 - **CI configuration** - Removed Java 11 support (now supporting Java 17 and 21 only)
 - **CI configuration** - Removed Windows runners temporarily (now testing on Ubuntu and macOS only)
+- **Plugin metadata** - Enhanced `gradlePlugin` configuration with website, vcsUrl, and tags for better Plugin Portal presentation
 
 ### Fixed
 - **Windows path separator compatibility** - Fixed `ProjectFileMapper` to normalize path separators on Windows, ensuring nested projects like `:apps:app2` are correctly identified instead of just their parent directory `:apps`
 - **Windows test name compatibility** - Fixed `TestProjectListener` to sanitize test names before using them in temporary directory paths, preventing `InvalidPathException` on Windows when test names contain illegal path characters like colons
+- **Release Please configuration** - Fixed `release-please-config.json` to use `generic` type instead of unsupported `gradle` type for version file updates
 
 ### BREAKING CHANGES
 - **Project renamed** from `projects-changed-plugin` to `monorepo-changed-projects-plugin`

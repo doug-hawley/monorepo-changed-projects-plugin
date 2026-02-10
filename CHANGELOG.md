@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Release automation** - Integrated Release Please for automated releases based on Conventional Commits
 - `RELEASE_PLEASE_GUIDE.md` - Comprehensive guide for using Release Please and Conventional Commits
 - `PUBLISHING_GUIDE.md` - Complete guide for publishing to Gradle Plugin Portal with step-by-step instructions
+- `LICENSE` - MIT License file for open source distribution
 - `.github/workflows/release-please.yml` - GitHub Action workflow for automated releases
 - `release-please-config.json` - Release Please configuration
 - `.release-please-manifest.json` - Version tracking for Release Please
@@ -36,7 +37,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CI configuration** - Removed Java 11 support (now supporting Java 17 and 21 only)
 - **CI configuration** - Removed Windows runners temporarily (now testing on Ubuntu and macOS only)
 - **Plugin metadata** - Enhanced `gradlePlugin` configuration with website, vcsUrl, and tags for better Plugin Portal presentation
-- **Plugin ID** - Updated from `com.bitmoxie.monorepo-changed-projects` to `com.bitmoxie.monorepo-changed-projects-plugin` for clarity
+- **Plugin ID** - Updated to `io.github.perulish8.monorepo-changed-projects-plugin` (GitHub-based namespace) for simpler Plugin Portal verification without requiring domain ownership
+- **Group ID** - Updated from `com.bitmoxie` to `io.github.perulish8` to align with GitHub-based plugin ID namespace
+- **Repository URLs** - Updated all GitHub URLs from `bitmoxie` organization to `perulish8` user account
+- **README.md** - Restructured to focus on users of the plugin rather than developers; moved development instructions to CONTRIBUTING.md
 
 ### Fixed
 - **Windows path separator compatibility** - Fixed `ProjectFileMapper` to normalize path separators on Windows, ensuring nested projects like `:apps:app2` are correctly identified instead of just their parent directory `:apps`
@@ -45,7 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### BREAKING CHANGES
 - **Project renamed** from `projects-changed-plugin` to `monorepo-changed-projects-plugin`
-- **Plugin ID changed** from `com.bitmoxie.projects-changed` to `com.bitmoxie.monorepo-changed-projects-plugin`
+- **Plugin ID changed** from `com.bitmoxie.projects-changed` to `io.github.perulish8.monorepo-changed-projects-plugin` (using GitHub-based namespace for easier verification)
 - **Package renamed** from `com.bitmoxie.projectschanged` to `com.bitmoxie.monorepochangedprojects`
 - **Main class renamed** from `ProjectsChangedPlugin` to `MonorepoChangedProjectsPlugin`
 - **Migrated tests** from JUnit to Kotest

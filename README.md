@@ -1,6 +1,6 @@
 # Monorepo Changed Projects Plugin
 
-[![CI](https://github.com/bitmoxie/monorepo-changed-projects-plugin/actions/workflows/ci.yml/badge.svg)](https://github.com/bitmoxie/monorepo-changed-projects-plugin/actions/workflows/ci.yml)
+[![CI](https://github.com/perulish8/monorepo-changed-projects-plugin/actions/workflows/ci.yml/badge.svg)](https://github.com/perulish8/monorepo-changed-projects-plugin/actions/workflows/ci.yml)
 
 A Gradle plugin designed to optimize build times in large multi-module Gradle projects and monorepos by detecting which projects have changed based on git history.
 
@@ -38,9 +38,11 @@ This dramatically reduces build times in CI/CD pipelines by avoiding unnecessary
 
 ```kotlin
 plugins {
-    id("com.bitmoxie.monorepo-changed-projects-plugin") version "1.0.0"
+    id("io.github.perulish8.monorepo-changed-projects-plugin") version "1.0.0"
 }
 ```
+
+> **Note:** This plugin uses a GitHub-based plugin ID (`io.github.perulish8`) which simplifies verification on the Gradle Plugin Portal without requiring domain ownership.
 
 ### Configure the plugin
 
@@ -187,7 +189,7 @@ For a multi-module project, the plugin can determine which subprojects are affec
 ```kotlin
 // In root build.gradle.kts
 plugins {
-    id("com.bitmoxie.monorepo-changed-projects") version "1.0.0"
+    id("io.github.perulish8.monorepo-changed-projects-plugin") version "1.0.0"
 }
 
 projectsChanged {
@@ -376,64 +378,19 @@ Check your `excludePatterns` configuration - you may be inadvertently excluding 
 
 This is expected if files in the root directory (outside of subproject directories) have changed. To prevent this, ensure all code is within subproject directories.
 
-## Building the plugin
+## Requirements
 
-```bash
-./gradlew build
-```
+- Gradle 7.0 or higher
+- Git installed and available in PATH
+- Java 17 or higher
 
-## Running Tests
+## Support & Contributions
 
-Tests are written using [Kotest](https://kotest.io/) with the FunSpec style:
-
-```bash
-./gradlew test
-```
-
-## Publishing locally
-
-```bash
-./gradlew publishToMavenLocal
-```
-
-## Publishing to Gradle Plugin Portal
-
-This plugin is ready to be published to the Gradle Plugin Portal. See [PUBLISHING_GUIDE.md](PUBLISHING_GUIDE.md) for complete instructions on:
-- Getting your Plugin Portal credentials
-- Configuring GitHub secrets
-- Publishing via Release Please (automated)
-- Publishing via manual tag release
-- Post-publishing verification
-
-## Contributing
-
-This project uses [Release Please](https://github.com/googleapis/release-please) for automated releases and [Conventional Commits](https://www.conventionalcommits.org/) for commit messages.
-
-Please read [RELEASE_PLEASE_GUIDE.md](RELEASE_PLEASE_GUIDE.md) for detailed information on:
-- Conventional commit format
-- How releases are automated
-- Version bumping strategies
-- Publishing workflow
-
-### Quick Start
-
-When making commits, use conventional commit format:
-
-```bash
-# Feature addition (bumps MINOR version)
-git commit -m "feat: add new feature"
-
-# Bug fix (bumps PATCH version)
-git commit -m "fix: resolve issue"
-
-# Breaking change (bumps MAJOR version)
-git commit -m "feat!: breaking change
-
-BREAKING CHANGE: This removes support for X"
-```
+- **Issues**: Report bugs or request features via [GitHub Issues](https://github.com/perulish8/monorepo-changed-projects-plugin/issues)
+- **Contributing**: See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines
+- **Questions**: Start a discussion in [GitHub Discussions](https://github.com/perulish8/monorepo-changed-projects-plugin/discussions)
 
 ## License
 
-MIT License
-
+MIT License - see [LICENSE](LICENSE) file for details
 

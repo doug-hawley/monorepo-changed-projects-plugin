@@ -30,7 +30,7 @@ class TestProjectBuilder(private val projectDir: File) {
         return this
     }
 
-    fun applyPlugin(pluginId: String = "io.github.perulish8.monorepo-changed-projects-plugin"): TestProjectBuilder {
+    fun applyPlugin(pluginId: String = "io.github.doug-hawley.monorepo-changed-projects-plugin"): TestProjectBuilder {
         pluginApplied = true
         return this
     }
@@ -46,7 +46,7 @@ class TestProjectBuilder(private val projectDir: File) {
         val rootBuild = if (pluginApplied) {
             """
             plugins {
-                id("io.github.perulish8.monorepo-changed-projects-plugin")
+                id("io.github.doug-hawley.monorepo-changed-projects-plugin")
             }
             
             projectsChanged {

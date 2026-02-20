@@ -19,7 +19,7 @@ Issues identified during code review. Severity: **high**, **medium**, **low**.
 ### 3. Fragile reflection-based dependency unwrapping in `ProjectMetadataFactory`
 - **File**: `src/main/kotlin/.../ProjectMetadataFactory.kt` (lines 130–140)
 - **Issue**: Platform/BOM dependencies are detected via reflection (`getDependency` method lookup). This relies on undocumented Gradle internals, has no null check on the result, and silently fails — meaning BOM-dependent projects may not be detected correctly.
-- **Status**: Open
+- **Status**: Fixed in `fix-reflection-dependency-unwrapping` — reflection removed; `platform(project(...))` returns the same `ProjectDependency` with platform attributes set, so it is already caught by the `is ProjectDependency` check. Unit test added to prevent regression.
 
 ---
 

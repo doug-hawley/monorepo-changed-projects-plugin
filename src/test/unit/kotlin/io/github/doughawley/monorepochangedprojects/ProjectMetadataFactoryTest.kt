@@ -471,6 +471,38 @@ class ProjectMetadataFactoryTest : FunSpec({
         commonLibMetadata.hasChanges() shouldBe true
     }
 
+    test("should detect platform project dependency without reflection") {
+        // given
+        val rootProject = ProjectBuilder.builder().build()
+        val platform = ProjectBuilder.builder()
+            .withParent(rootProject)
+            .withName("platform")
+            .build()
+        val service = ProjectBuilder.builder()
+            .withParent(rootProject)
+            .withName("service")
+            .build()
+
+        platform.pluginManager.apply("java-platform")
+        service.pluginManager.apply("java-library")
+
+        // platform(project(":platform")) returns the same ProjectDependency with platform
+        // attributes set — it is already a ProjectDependency and requires no reflection to unwrap
+        service.dependencies.add("implementation", service.dependencies.platform(platform))
+
+        val logger = rootProject.logger
+        val factory = ProjectMetadataFactory(logger)
+
+        // when
+        val metadataMap = factory.buildProjectMetadataMap(rootProject)
+
+        // then
+        val serviceMetadata = metadataMap[":service"]
+        serviceMetadata shouldNotBe null
+        serviceMetadata!!.dependencies shouldHaveSize 1
+        serviceMetadata.dependencies[0].fullyQualifiedName shouldBe ":platform"
+    }
+
     test("should handle projects with no changes in changed files map") {
         // given
         val rootProject = ProjectBuilder.builder().build()

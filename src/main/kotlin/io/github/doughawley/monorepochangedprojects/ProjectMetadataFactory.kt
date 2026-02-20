@@ -117,28 +117,13 @@ class ProjectMetadataFactory(private val logger: Logger) {
                 try {
                     // Only look at declared dependencies, don't resolve
                     config.dependencies.forEach { dep ->
-                        when (dep) {
-                            is ProjectDependency -> {
-                                // Regular project dependency
-                                @Suppress("DEPRECATION")
-                                dependencies.add(dep.dependencyProject.path)
-                            }
-                            else -> {
-                                // Check if it's a platform dependency wrapping a ProjectDependency
-                                try {
-                                    // Try to unwrap the project dependency from platform notation
-                                    val wrappedDep = dep.javaClass.methods
-                                        .find { it.name == "getDependency" }
-                                        ?.invoke(dep)
-
-                                    if (wrappedDep is ProjectDependency) {
-                                        @Suppress("DEPRECATION")
-                                        dependencies.add(wrappedDep.dependencyProject.path)
-                                    }
-                                } catch (_: Exception) {
-                                    // Not a platform dependency or can't unwrap, skip
-                                }
-                            }
+                        // ProjectDependency covers both regular and platform project dependencies.
+                        // Calling platform(project(":X")) in Gradle returns the same ProjectDependency
+                        // object with endorseStrictVersions() and the Category.REGULAR_PLATFORM
+                        // attribute set on it — it does not wrap it in a different type.
+                        if (dep is ProjectDependency) {
+                            @Suppress("DEPRECATION")
+                            dependencies.add(dep.dependencyProject.path)
                         }
                     }
                 } catch (e: Exception) {

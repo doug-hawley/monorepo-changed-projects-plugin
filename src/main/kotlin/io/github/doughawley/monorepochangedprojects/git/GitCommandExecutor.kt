@@ -34,12 +34,22 @@ class GitCommandExecutor(private val logger: Logger) {
     fun execute(directory: File, vararg command: String): CommandResult {
         val fullCommand = arrayOf("git") + command
 
-        return try {
-            val process = ProcessBuilder(*fullCommand)
+        val process = try {
+            ProcessBuilder(*fullCommand)
                 .directory(directory)
                 .redirectErrorStream(true)
                 .start()
+        } catch (e: Exception) {
+            logger.error("Exception starting git command: ${fullCommand.joinToString(" ")}", e)
+            return CommandResult(
+                success = false,
+                output = emptyList(),
+                exitCode = -1,
+                errorOutput = e.message ?: "Unknown error"
+            )
+        }
 
+        return try {
             val exitCode = process.waitFor()
             val output = process.inputStream.bufferedReader().use { reader ->
                 reader.readLines().filter { it.isNotBlank() }
@@ -63,6 +73,15 @@ class GitCommandExecutor(private val logger: Logger) {
                     errorOutput = errorOutput
                 )
             }
+        } catch (e: InterruptedException) {
+            Thread.currentThread().interrupt()
+            logger.error("Interrupted waiting for git command: ${fullCommand.joinToString(" ")}", e)
+            CommandResult(
+                success = false,
+                output = emptyList(),
+                exitCode = -1,
+                errorOutput = e.message ?: "Interrupted"
+            )
         } catch (e: Exception) {
             logger.error("Exception executing git command: ${fullCommand.joinToString(" ")}", e)
             CommandResult(
@@ -71,6 +90,8 @@ class GitCommandExecutor(private val logger: Logger) {
                 exitCode = -1,
                 errorOutput = e.message ?: "Unknown error"
             )
+        } finally {
+            process.destroy()
         }
     }
 

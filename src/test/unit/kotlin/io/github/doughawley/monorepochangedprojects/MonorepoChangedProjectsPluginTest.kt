@@ -93,8 +93,8 @@ class MonorepoChangedProjectsPluginTest : FunSpec({
             task.detectChanges()
 
             // then
-            val changedProjects = project.extensions.extraProperties.get("changedProjects") as Set<String>
-            changedProjects shouldBe emptySet()
+            val extension = project.extensions.getByType(ProjectsChangedExtension::class.java)
+            extension.allAffectedProjects shouldBe emptySet()
         } finally {
             tempDir.deleteRecursively()
         }

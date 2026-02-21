@@ -9,7 +9,6 @@ import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.collections.shouldNotContain
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
-import io.kotest.matchers.string.shouldNotContain
 import org.gradle.testkit.runner.TaskOutcome
 
 /**
@@ -95,7 +94,7 @@ class BuildChangedProjectsFunctionalTest : FunSpec({
         builtProjects shouldContainAll setOf(Projects.APP1, Projects.APP2)
     }
 
-    test("buildChangedProjects runs after printChangedProjects") {
+    test("buildChangedProjects succeeds without running printChangedProjects") {
         // Setup
         val project = testProjectListener.createStandardProject()
 
@@ -105,9 +104,9 @@ class BuildChangedProjectsFunctionalTest : FunSpec({
         // Execute
         val result = project.runTask("buildChangedProjects")
 
-        // Assert - both tasks should have run
-        result.task(":printChangedProjects")?.outcome shouldBe TaskOutcome.SUCCESS
+        // Assert - buildChangedProjects runs independently; printChangedProjects is not triggered
         result.task(":buildChangedProjects")?.outcome shouldBe TaskOutcome.SUCCESS
+        result.task(":printChangedProjects") shouldBe null
     }
 
     test("buildChangedProjects builds only leaf project when changed") {
@@ -217,30 +216,6 @@ class BuildChangedProjectsFunctionalTest : FunSpec({
         )
     }
 
-    test("buildChangedProjects automatically runs printChangedProjects due to dependsOn") {
-        // This test validates Issue #2 fix - that property is available when buildChangedProjects runs
-        // Setup
-        val project = testProjectListener.createStandardProject()
-
-        // Make a change
-        project.appendToFile(Files.APP1_SOURCE, "\n// Change")
-        project.commitAll("Change app1")
-
-        // Execute buildChangedProjects WITHOUT explicitly running printChangedProjects first
-        // The dependsOn relationship should ensure printChangedProjects runs first
-        val result = project.runTask("buildChangedProjects")
-
-        // Assert
-        // Both tasks should have run successfully
-        result.task(":printChangedProjects")?.outcome shouldBe TaskOutcome.SUCCESS
-        result.task(":buildChangedProjects")?.outcome shouldBe TaskOutcome.SUCCESS
-
-        // The property should have been available (no error about missing property)
-        val builtProjects = result.extractBuiltProjects()
-        builtProjects shouldContain Projects.APP1
-        result.output shouldNotContain "Changed projects data not available"
-        result.output shouldNotContain "printChangedProjects must run before buildChangedProjects"
-    }
 })
 
 

@@ -18,6 +18,11 @@
           "type": "generic",
           "path": "README.md",
           "glob": false
+        },
+        {
+          "type": "generic",
+          "path": "examples/access-changed-files.gradle.kts",
+          "glob": false
         }
       ]
     }

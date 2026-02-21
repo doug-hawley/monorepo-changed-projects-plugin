@@ -75,13 +75,15 @@ This task will:
 
 ### Access changed projects in other tasks
 
-After `printChangedProjects` runs, the plugin stores results in extra properties for use in downstream tasks:
+The plugin computes results during the configuration phase, so any task can access them directly from the `projectsChanged` extension — no `dependsOn` needed:
 
 ```kotlin
 tasks.register("customTask") {
-    dependsOn("printChangedProjects")
     doLast {
-        val changedProjects = project.extensions.extraProperties.get("changedProjects") as Set<String>
+        val extension = project.extensions.getByType(
+            io.github.doughawley.monorepochangedprojects.ProjectsChangedExtension::class.java
+        )
+        val changedProjects = extension.allAffectedProjects
         println("Changed projects: $changedProjects")
 
         changedProjects.forEach { projectPath ->
@@ -95,12 +97,13 @@ tasks.register("customTask") {
 
 ```kotlin
 tasks.register("showChangedFiles") {
-    dependsOn("printChangedProjects")
     doLast {
-        // Map of project path -> list of changed files in that project
-        val changedFilesMap = project.extensions.extraProperties.get("changedFilesMap") as Map<String, List<String>>
+        val extension = project.extensions.getByType(
+            io.github.doughawley.monorepochangedprojects.ProjectsChangedExtension::class.java
+        )
 
-        changedFilesMap.forEach { (projectPath, files) ->
+        // Map of project path -> list of changed files in that project
+        extension.changedFilesMap.forEach { (projectPath, files) ->
             println("Project $projectPath has ${files.size} changed files:")
             files.forEach { file ->
                 println("  - $file")
@@ -108,9 +111,7 @@ tasks.register("showChangedFiles") {
         }
 
         // Full metadata including dependency graph and changed files
-        val metadataMap = project.extensions.extraProperties.get("changedProjectsMetadata") as Map<String, io.github.doughawley.monorepochangedprojects.domain.ProjectMetadata>
-
-        metadataMap.values.forEach { metadata ->
+        extension.metadataMap.values.forEach { metadata ->
             // hasChanges() returns true if project has direct changes OR dependency changes
             if (metadata.hasChanges()) {
                 println("${metadata.fullyQualifiedName}: affected by changes")
@@ -128,14 +129,14 @@ tasks.register("showChangedFiles") {
 The `ChangedProjects` domain object provides a richer API over the raw metadata map:
 
 ```kotlin
+import io.github.doughawley.monorepochangedprojects.ProjectsChangedExtension
 import io.github.doughawley.monorepochangedprojects.domain.ChangedProjects
 import io.github.doughawley.monorepochangedprojects.domain.ProjectMetadata
 
 tasks.register("analyzeWithChangedProjects") {
-    dependsOn("printChangedProjects")
     doLast {
-        val metadataMap = project.extensions.extraProperties
-            .get("changedProjectsMetadata") as Map<String, ProjectMetadata>
+        val extension = project.extensions.getByType(ProjectsChangedExtension::class.java)
+        val metadataMap = extension.metadataMap
 
         val changedProjects = ChangedProjects(metadataMap.values.toList())
 
@@ -210,9 +211,11 @@ Use in CI to only test changed modules:
 
 ```kotlin
 tasks.register("ciTest") {
-    dependsOn("printChangedProjects")
     doLast {
-        val changedProjects = project.extensions.extraProperties.get("changedProjects") as Set<String>
+        val extension = project.extensions.getByType(
+            io.github.doughawley.monorepochangedprojects.ProjectsChangedExtension::class.java
+        )
+        val changedProjects = extension.allAffectedProjects
 
         if (changedProjects.isEmpty()) {
             println("No changes detected, skipping tests")
@@ -232,16 +235,13 @@ tasks.register("ciTest") {
 Use prefix filtering to build only changed applications:
 
 ```kotlin
+import io.github.doughawley.monorepochangedprojects.ProjectsChangedExtension
 import io.github.doughawley.monorepochangedprojects.domain.ChangedProjects
-import io.github.doughawley.monorepochangedprojects.domain.ProjectMetadata
 
 tasks.register("buildChangedApps") {
-    dependsOn("printChangedProjects")
     doLast {
-        val metadataMap = project.extensions.extraProperties
-            .get("changedProjectsMetadata") as Map<String, ProjectMetadata>
-
-        val changedProjects = ChangedProjects(metadataMap.values.toList())
+        val extension = project.extensions.getByType(ProjectsChangedExtension::class.java)
+        val changedProjects = ChangedProjects(extension.metadataMap.values.toList())
 
         // Get only changed apps (assuming apps are under :apps directory)
         val changedAppPaths = changedProjects.getChangedProjectPathsWithPrefix(":apps")

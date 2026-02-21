@@ -33,19 +33,22 @@ open class ProjectsChangedExtension {
      * Maps project paths to their metadata including dependencies and changed files.
      * Available after configuration phase completes.
      */
-    internal var metadataMap: Map<String, ProjectMetadata> = emptyMap()
+    var metadataMap: Map<String, ProjectMetadata> = emptyMap()
+        internal set
 
     /**
      * Set of all affected project paths (including those affected by dependency changes).
      * Available after configuration phase completes.
      */
-    internal var allAffectedProjects: Set<String> = emptySet()
+    var allAffectedProjects: Set<String> = emptySet()
+        internal set
 
     /**
      * Map of changed files by project path.
      * Available after configuration phase completes.
      */
-    internal var changedFilesMap: Map<String, List<String>> = emptyMap()
+    var changedFilesMap: Map<String, List<String>> = emptyMap()
+        internal set
 
     /**
      * Guards against concurrent metadata computation under --parallel builds.

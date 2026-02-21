@@ -88,8 +88,6 @@ class MonorepoChangedProjectsPlugin : Plugin<Project> {
         project.tasks.register("buildChangedProjects").configure {
             group = "build"
             description = "Builds only the projects that have been affected by changes"
-            dependsOn("printChangedProjects")
-
             doLast {
                 val extension = project.rootProject.extensions.getByType(ProjectsChangedExtension::class.java)
 

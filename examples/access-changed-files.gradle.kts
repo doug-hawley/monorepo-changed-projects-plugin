@@ -2,7 +2,7 @@
 // Place this in your root build.gradle.kts
 
 plugins {
-    id("io.github.doug-hawley.monorepo-changed-projects-plugin") version "1.1.0" // x-release-please-version
+    id("io.github.doug-hawley.monorepo-changed-projects-plugin") version "1.2.0" // x-release-please-version
 }
 
 projectsChanged {

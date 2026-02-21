@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0](https://github.com/doug-hawley/monorepo-changed-projects-plugin/compare/v1.1.0...v1.2.0) (2026-02-21)
+
+
+### Features
+
+* add per-project exclude patterns via projectExcludes extension ([30d205b](https://github.com/doug-hawley/monorepo-changed-projects-plugin/commit/30d205ba60dc10e535c34b61dffbbcd18ce84c81))
+* expose extension API for downstream task access ([340f3c1](https://github.com/doug-hawley/monorepo-changed-projects-plugin/commit/340f3c1d6b20095d05059ca661bac3a4b63e2fff))
+* rename detectChangedProjects task to printChangedProjects ([569e026](https://github.com/doug-hawley/monorepo-changed-projects-plugin/commit/569e026fd73501f9a278050fa347b27d4d197ef7))
+
 ## [1.1.0](https://github.com/doug-hawley/monorepo-changed-projects-plugin/compare/v1.0.1...v1.1.0) (2026-02-21)
 
 

@@ -33,20 +33,12 @@ abstract class PrintChangedProjectsTask : DefaultTask() {
         }
 
         // Read pre-computed metadata from configuration phase
-        val metadataMap = extension.metadataMap
-        val allAffectedProjects = extension.allAffectedProjects
-        val changedFilesMap = extension.changedFilesMap
-        val directlyChangedProjects = changedFilesMap.keys
+        val directlyChangedProjects = extension.changedFilesMap.keys
 
         val directlyChangedList = if (directlyChangedProjects.isEmpty()) "" else directlyChangedProjects.joinToString(", ")
         logger.lifecycle("Directly changed projects: $directlyChangedList")
 
-        val allAffectedList = if (allAffectedProjects.isEmpty()) "" else allAffectedProjects.joinToString(", ")
+        val allAffectedList = if (extension.allAffectedProjects.isEmpty()) "" else extension.allAffectedProjects.joinToString(", ")
         logger.lifecycle("All affected projects (including dependents): $allAffectedList")
-
-        // Store results in project extra properties for backward compatibility
-        project.extensions.extraProperties.set("changedProjects", allAffectedProjects)
-        project.extensions.extraProperties.set("changedProjectsMetadata", metadataMap)
-        project.extensions.extraProperties.set("changedFilesMap", changedFilesMap)
     }
 }

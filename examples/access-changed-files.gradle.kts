@@ -2,7 +2,7 @@
 // Place this in your root build.gradle.kts
 
 plugins {
-    id("io.github.doug-hawley.monorepo-changed-projects-plugin") version "1.0.0"
+    id("io.github.doug-hawley.monorepo-changed-projects-plugin") version "1.1.0" // x-release-please-version
 }
 
 projectsChanged {
@@ -10,24 +10,28 @@ projectsChanged {
     includeUntracked = true
 }
 
+// The plugin computes results during the configuration phase, so any task can read
+// from the extension directly — no dependsOn("printChangedProjects") needed.
+
 // Example 1: Simple - Just list changed projects
 tasks.register("listChangedProjects") {
-    dependsOn("printChangedProjects")
     doLast {
-        val changedProjects = project.extensions.extraProperties.get("changedProjects") as Set<String>
-        println("Changed projects: ${changedProjects.joinToString(", ")}")
+        val extension = project.extensions.getByType(
+            io.github.doughawley.monorepochangedprojects.ProjectsChangedExtension::class.java
+        )
+        println("Changed projects: ${extension.allAffectedProjects.joinToString(", ")}")
     }
 }
 
 // Example 2: Detailed - List changed files per project
 tasks.register("listChangedFiles") {
-    dependsOn("printChangedProjects")
     doLast {
-        val changedFilesMap = project.extensions.extraProperties
-            .get("changedFilesMap") as Map<String, List<String>>
+        val extension = project.extensions.getByType(
+            io.github.doughawley.monorepochangedprojects.ProjectsChangedExtension::class.java
+        )
 
         println("Changed files by project:")
-        changedFilesMap.forEach { (projectPath, files) ->
+        extension.changedFilesMap.forEach { (projectPath, files) ->
             println("\n$projectPath (${files.size} files):")
             files.forEach { file ->
                 println("  - $file")
@@ -38,13 +42,13 @@ tasks.register("listChangedFiles") {
 
 // Example 3: Advanced - Use full metadata with dependencies
 tasks.register("analyzeChanges") {
-    dependsOn("printChangedProjects")
     doLast {
-        val metadataMap = project.extensions.extraProperties
-            .get("changedProjectsMetadata") as Map<String, io.github.doughawley.monorepochangedprojects.domain.ProjectMetadata>
+        val extension = project.extensions.getByType(
+            io.github.doughawley.monorepochangedprojects.ProjectsChangedExtension::class.java
+        )
 
         println("Detailed change analysis:")
-        metadataMap.values
+        extension.metadataMap.values
             .filter { it.hasChanges() }
             .forEach { metadata ->
                 println("\n${metadata.fullyQualifiedName}:")
@@ -62,12 +66,12 @@ tasks.register("analyzeChanges") {
 
 // Example 4: Conditional build based on file types
 tasks.register("smartBuild") {
-    dependsOn("printChangedProjects")
     doLast {
-        val changedFilesMap = project.extensions.extraProperties
-            .get("changedFilesMap") as Map<String, List<String>>
+        val extension = project.extensions.getByType(
+            io.github.doughawley.monorepochangedprojects.ProjectsChangedExtension::class.java
+        )
 
-        changedFilesMap.forEach { (projectPath, files) ->
+        extension.changedFilesMap.forEach { (projectPath, files) ->
             val hasSourceChanges = files.any { it.endsWith(".kt") || it.endsWith(".java") }
             val hasTestChanges = files.any { it.contains("/test/") }
             val hasConfigChanges = files.any { it.endsWith("build.gradle.kts") || it.endsWith(".properties") }
@@ -91,10 +95,10 @@ tasks.register("smartBuild") {
 
 // Example 5: Generate impact report
 tasks.register("impactReport") {
-    dependsOn("printChangedProjects")
     doLast {
-        val metadataMap = project.extensions.extraProperties
-            .get("changedProjectsMetadata") as Map<String, io.github.doughawley.monorepochangedprojects.domain.ProjectMetadata>
+        val extension = project.extensions.getByType(
+            io.github.doughawley.monorepochangedprojects.ProjectsChangedExtension::class.java
+        )
 
         val report = StringBuilder()
         report.appendLine("=" .repeat(80))
@@ -102,7 +106,7 @@ tasks.register("impactReport") {
         report.appendLine("=" .repeat(80))
         report.appendLine()
 
-        val changedProjects = metadataMap.values.filter { it.hasChanges() }
+        val changedProjects = extension.metadataMap.values.filter { it.hasChanges() }
         report.appendLine("Total projects with changes: ${changedProjects.size}")
         report.appendLine()
 

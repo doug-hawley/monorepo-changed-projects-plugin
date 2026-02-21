@@ -2,7 +2,7 @@ plugins {
     `kotlin-dsl`
     `java-gradle-plugin`
     `maven-publish`
-    id("com.gradle.plugin-publish") version "1.3.0"
+    id("com.gradle.plugin-publish") version "2.0.0"
 }
 
 group = "io.github.doug-hawley"
@@ -90,8 +90,8 @@ tasks.withType<Test>().configureEach {
 }
 
 gradlePlugin {
-    website = "https://github.com/doug-hawley/monorepo-changed-projects-plugin"
-    vcsUrl = "https://github.com/doug-hawley/monorepo-changed-projects-plugin.git"
+    website.set("https://github.com/doug-hawley/monorepo-changed-projects-plugin")
+    vcsUrl.set("https://github.com/doug-hawley/monorepo-changed-projects-plugin.git")
 
     plugins {
         register("monorepoChangedProjectsPlugin") {
@@ -99,7 +99,7 @@ gradlePlugin {
             implementationClass = "io.github.doughawley.monorepochangedprojects.MonorepoChangedProjectsPlugin"
             displayName = "Monorepo Changed Projects Plugin"
             description = "A Gradle plugin to detect changed projects in a monorepo based on git history"
-            tags = listOf("monorepo", "git", "ci", "optimization", "build")
+            tags.set(listOf("monorepo", "git", "ci", "optimization", "build"))
         }
     }
 }

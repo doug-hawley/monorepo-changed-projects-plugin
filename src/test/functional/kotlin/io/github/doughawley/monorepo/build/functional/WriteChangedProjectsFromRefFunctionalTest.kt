@@ -19,16 +19,16 @@ import java.io.File
 class WriteChangedProjectsFromRefFunctionalTest : FunSpec({
     val testProjectListener = listener(TestProjectListener())
 
-    test("writeChangedProjectsFromRef fails with helpful error when no commitRef provided") {
+    test("writeChangedProjectsFromRef succeeds on initial commit with default HEAD~1 by treating all files as changed") {
         // given
         val project = testProjectListener.createStandardProject()
 
-        // when
-        val result = project.runTaskAndFail("writeChangedProjectsFromRef")
+        // when: run without commitRef (defaults to HEAD~1, which falls back to empty-tree diff on initial commit)
+        val result = project.runTask("writeChangedProjectsFromRef")
 
-        // then
-        result.output shouldContain "commitRef"
-        result.output shouldContain "monorepo.commitRef"
+        // then: build succeeds and reports initial commit fallback
+        result.task(":writeChangedProjectsFromRef")?.outcome shouldBe TaskOutcome.SUCCESS
+        result.output shouldContain "initial commit"
     }
 
     test("writeChangedProjectsFromRef writes changed project paths to default output file") {

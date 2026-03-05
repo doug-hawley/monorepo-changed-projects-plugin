@@ -108,9 +108,25 @@ class GitRepositoryTest : FunSpec({
     }
 
     test("diffFromRef throws IllegalArgumentException when ref does not exist") {
+        // given — add a second commit so this is NOT an initial-commit repo
+        File(repoDir, "second.txt").writeText("second")
+        git(repoDir, "add", "second.txt")
+        git(repoDir, "commit", "-m", "second commit")
+
+        // when / then
         shouldThrow<IllegalArgumentException> {
             GitRepository(repoDir, logger).diffFromRef("nonexistent-ref-xyz")
         }
+    }
+
+    test("diffFromRef falls back to empty-tree diff on initial commit when ref does not exist") {
+        // given — repo has only one commit (initial), so HEAD~1 does not exist
+
+        // when
+        val result = GitRepository(repoDir, logger).diffFromRef("HEAD~1")
+
+        // then — all files from the initial commit are returned
+        result shouldContain "initial.txt"
     }
 
     // --- workingTreeChanges ---

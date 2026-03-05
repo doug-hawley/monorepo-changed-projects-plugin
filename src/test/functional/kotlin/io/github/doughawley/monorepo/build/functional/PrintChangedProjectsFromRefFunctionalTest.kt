@@ -16,16 +16,16 @@ import org.gradle.testkit.runner.TaskOutcome
 class PrintChangedProjectsFromRefFunctionalTest : FunSpec({
     val testProjectListener = listener(TestProjectListener())
 
-    test("printChangedProjectsFromRef fails with helpful error when no commitRef provided") {
+    test("printChangedProjectsFromRef succeeds on initial commit with default HEAD~1 by treating all files as changed") {
         // given
         val project = testProjectListener.createStandardProject()
 
-        // when: run without commitRef
-        val result = project.runTaskAndFail("printChangedProjectsFromRef")
+        // when: run without commitRef (defaults to HEAD~1, which falls back to empty-tree diff on initial commit)
+        val result = project.runTask("printChangedProjectsFromRef")
 
-        // then: error message mentions how to supply commitRef
-        result.output shouldContain "commitRef"
-        result.output shouldContain "monorepo.commitRef"
+        // then: build succeeds and reports initial commit fallback
+        result.task(":printChangedProjectsFromRef")?.outcome shouldBe TaskOutcome.SUCCESS
+        result.output shouldContain "initial commit"
     }
 
     test("printChangedProjectsFromRef detects directly changed project using commit SHA") {

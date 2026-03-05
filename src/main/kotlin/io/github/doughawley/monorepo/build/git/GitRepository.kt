@@ -41,12 +41,32 @@ open class GitRepository(
         val dir = gitDir ?: return emptyList()
         val result = gitExecutor.execute(dir, "diff", "--name-only", commitRef, "HEAD")
         if (!result.success) {
+            if (isRelativeParentRef(commitRef) && isInitialCommit(dir)) {
+                logger.lifecycle(
+                    "Commit ref '$commitRef' does not exist, but this appears to be the initial commit. " +
+                    "Treating all files as changed."
+                )
+                return diffFromEmptyTree(dir)
+            }
             throw IllegalArgumentException(
                 "Commit ref '$commitRef' does not exist in this repository. " +
                 "Check the value passed to commitRef / -Pmonorepo.commitRef."
             )
         }
         return result.output
+    }
+
+    private fun isRelativeParentRef(ref: String): Boolean {
+        return ref.contains("~") || ref.contains("^")
+    }
+
+    private fun isInitialCommit(dir: File): Boolean {
+        val result = gitExecutor.execute(dir, "rev-list", "--count", "HEAD")
+        return result.success && result.output.firstOrNull()?.trim() == "1"
+    }
+
+    private fun diffFromEmptyTree(dir: File): List<String> {
+        return gitExecutor.executeForOutput(dir, "diff-tree", "--root", "--name-only", "--no-commit-id", "-r", "HEAD")
     }
 
     /** Returns files modified in the working tree but not yet staged. */

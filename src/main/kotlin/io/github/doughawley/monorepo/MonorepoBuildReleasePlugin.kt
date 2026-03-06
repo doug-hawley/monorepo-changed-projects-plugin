@@ -9,7 +9,6 @@ import io.github.doughawley.monorepo.build.git.GitChangedFilesDetector
 import io.github.doughawley.monorepo.build.git.GitRepository
 import io.github.doughawley.monorepo.build.task.PrintChangedProjectsFromRefTask
 import io.github.doughawley.monorepo.build.task.PrintChangedProjectsTask
-import io.github.doughawley.monorepo.build.task.WriteChangedProjectsFromRefTask
 import io.github.doughawley.monorepo.release.MonorepoReleaseConfigExtension
 import io.github.doughawley.monorepo.release.MonorepoReleaseExtension
 import io.github.doughawley.monorepo.release.task.CreateReleaseBranchTask
@@ -38,7 +37,6 @@ class MonorepoBuildReleasePlugin @Inject constructor(
         val REF_TASKS = setOf(
             "printChangedProjectsFromRef",
             "buildChangedProjectsFromRef",
-            "writeChangedProjectsFromRef",
             "createReleaseBranchesForChangedProjects"
         )
         val BRANCH_TASKS = setOf("printChangedProjectsFromBranch", "buildChangedProjectsFromBranch")
@@ -104,7 +102,7 @@ class MonorepoBuildReleasePlugin @Inject constructor(
                     if (mode == DetectionMode.FROM_REF) {
                         val commitRef = resolveCommitRef(project.rootProject, rootBuildExtension)
                             ?: throw GradleException(
-                                "printChangedProjectsFromRef / buildChangedProjectsFromRef / writeChangedProjectsFromRef / createReleaseBranchesForChangedProjects requires " +
+                                "printChangedProjectsFromRef / buildChangedProjectsFromRef / createReleaseBranchesForChangedProjects requires " +
                                 "a commitRef. Set it in the monorepo { build { } } DSL or pass " +
                                 "-Pmonorepo.commitRef=<sha>."
                             )
@@ -199,17 +197,6 @@ class MonorepoBuildReleasePlugin @Inject constructor(
                 } else {
                     project.logger.lifecycle("Building changed projects (since $ref): ${changedProjects.joinToString(", ")}")
                 }
-            }
-        }
-
-        project.tasks.register("writeChangedProjectsFromRef", WriteChangedProjectsFromRefTask::class.java).configure {
-            group = BUILD_TASK_GROUP
-            description = "Writes changed projects since a specific commit ref to a file for CI/CD pipeline consumption"
-            val customPath = project.findProperty("monorepo.outputFile") as? String
-            if (customPath != null) {
-                outputFile.set(project.layout.projectDirectory.file(customPath))
-            } else {
-                outputFile.convention(project.layout.buildDirectory.file("monorepo/changed-projects.txt"))
             }
         }
 

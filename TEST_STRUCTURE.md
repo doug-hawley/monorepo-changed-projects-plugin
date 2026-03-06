@@ -50,7 +50,6 @@ Functional tests verify end-to-end functionality:
 - `BuildChangedProjectsFunctionalTest.kt` - Tests the `buildChangedProjectsFromBranch` task
 - `MonorepoPluginConfigurationTest.kt` - Configuration and exclude pattern scenarios
 - `PrintChangedProjectsFromRefFunctionalTest.kt` - Tests the ref-mode task
-- `WriteChangedProjectsFromRefFunctionalTest.kt` - Tests the write task
 - `ReleaseChangedProjectsFunctionalTest.kt` - Tests the `releaseChangedProjects` task
 - `ReleaseTaskFunctionalTest.kt` - Release task edge cases
 

@@ -96,29 +96,6 @@ Builds all affected projects since a specific commit ref. Defaults to `HEAD~1`, 
 
 > **Note:** Ref-mode tasks use a two-dot diff (`git diff <ref> HEAD`), which only considers committed changes. Staged and untracked files are intentionally ignored — this mode is designed for clean CI workspaces.
 
-#### `writeChangedProjectsFromRef`
-
-Writes the list of affected project paths to a file — one path per line, no headers or annotations. Designed for consumption by shell scripts in CI/CD pipelines.
-
-```bash
-# Use the default output path (build/monorepo/changed-projects.txt)
-./gradlew writeChangedProjectsFromRef -Pmonorepo.commitRef=abc123
-
-# Override the output path at runtime (no build script changes needed)
-./gradlew writeChangedProjectsFromRef \
-  -Pmonorepo.commitRef=abc123 \
-  -Pmonorepo.outputFile=ci/changed-projects.txt
-```
-
-Example output:
-```
-:common-lib
-:modules:module1
-:apps:app1
-```
-
-An empty file is written when nothing has changed, so downstream scripts can always assume the file exists after the task runs.
-
 ### Releases
 
 Each subproject manages its own semantic version using git tags of the form `{globalTagPrefix}/{projectPrefix}/v{version}` (e.g. `release/api/v1.2.0`). Release is opt-in per subproject.
@@ -207,16 +184,6 @@ tasks.register("customTask") {
             println("Affected: $projectPath")
         }
     }
-}
-```
-
-#### Override the `writeChangedProjectsFromRef` output path
-
-```kotlin
-tasks.named<io.github.doughawley.monorepo.build.task.WriteChangedProjectsFromRefTask>(
-    "writeChangedProjectsFromRef"
-) {
-    outputFile.set(layout.projectDirectory.file("ci/changed-projects.txt"))
 }
 ```
 

@@ -7,7 +7,7 @@ A Gradle plugin for multi-module projects that uses git history to detect which 
 ## Key Features
 
 - **Gradle-native dependency tracking** — changed project detection reads your existing Gradle project dependencies directly; no separate dependency map to define or maintain
-- **Two detection modes** — branch-mode for local development (compare against a base branch), ref-mode for CI pipelines (compare against a commit SHA or ref)
+- **Tag-based change detection** — compare against a `monorepo/last-successful-build` tag that only moves on green builds; failed builds automatically include their changes in the next run
 - **Transitive impact analysis** — projects that depend on a changed project are automatically included
 - **Selective builds** — run builds and tests only for affected projects, reducing CI time in large monorepos
 - **Per-project versioning** — each subproject gets its own semantic version tag; only changed projects are released
@@ -28,17 +28,20 @@ plugins {
 
 ```kotlin
 monorepo {
+    primaryBranch = "main"              // main integration branch; used as fallback ref; defaults to "main"
+
     build {
-        baseBranch = "main"           // branch to compare against for branch-mode tasks; defaults to "main"
-        commitRef = "HEAD~1"          // commit SHA, tag, or ref for ref-mode tasks; defaults to "HEAD~1"; can be overridden at runtime via -Pmonorepo.commitRef=<sha>
-        includeUntracked = true       // include files not yet tracked by git; defaults to true (branch-mode only)
-        excludePatterns = listOf(     // regex patterns for files to exclude globally across all projects
+        lastSuccessfulBuildTag = "monorepo/last-successful-build"  // tag name for change detection anchor; defaults shown
+        includeUntracked = true         // include files not yet tracked by git; defaults to true
+        excludePatterns = listOf(       // regex patterns for files to exclude globally across all projects
             ".*\\.md",
             "docs/.*"
         )
     }
 }
 ```
+
+The plugin detects changes by comparing HEAD against the `lastSuccessfulBuildTag`. If the tag doesn't exist (e.g., first run), it falls back to `origin/{primaryBranch}`.
 
 Individual subprojects can declare their own exclude patterns using the `monorepoProject` extension. Patterns are matched against paths relative to the subproject directory and are applied after global `excludePatterns`.
 
@@ -54,47 +57,23 @@ monorepoProject {
 }
 ```
 
-#### `printChangedProjectsFromBranch`
+#### `printChangedProjects`
 
-Prints a human-readable report of which projects have changed and which are transitively affected, comparing against `baseBranch`.
-
-```bash
-./gradlew printChangedProjectsFromBranch
-```
-
-#### `buildChangedProjectsFromBranch`
-
-Builds all affected projects (including transitive dependents), comparing against `baseBranch`. Useful before opening a pull request to verify only your changed modules build correctly.
+Prints a human-readable report of which projects have changed and which are transitively affected.
 
 ```bash
-./gradlew buildChangedProjectsFromBranch
+./gradlew printChangedProjects
 ```
 
-#### `printChangedProjectsFromRef`
+#### `buildChangedProjects`
 
-Prints a human-readable report of which projects changed since a specific commit ref. Defaults to `HEAD~1`.
+Builds all affected projects (including transitive dependents). Useful for PR validation and local development.
 
 ```bash
-# Use the default (HEAD~1)
-./gradlew printChangedProjectsFromRef
-
-# Override with a specific SHA
-./gradlew printChangedProjectsFromRef -Pmonorepo.commitRef=abc123
+./gradlew buildChangedProjects
 ```
 
-#### `buildChangedProjectsFromRef`
-
-Builds all affected projects since a specific commit ref. Defaults to `HEAD~1`, so it works out of the box for pipelines that trigger on every commit. Override with a specific SHA when your pipeline tracks the last successful build.
-
-```bash
-# Build what changed since the previous commit (default)
-./gradlew buildChangedProjectsFromRef
-
-# Build what changed since a specific SHA (e.g., last successful CI build)
-./gradlew buildChangedProjectsFromRef -Pmonorepo.commitRef=abc123def456
-```
-
-> **Note:** Ref-mode tasks use a two-dot diff (`git diff <ref> HEAD`), which only considers committed changes. Staged and untracked files are intentionally ignored — this mode is designed for clean CI workspaces.
+> **Note:** `buildChangedProjects` does not update the last-successful-build tag or create release branches. Use `buildChangedProjectsAndCreateReleaseBranches` for post-merge CI workflows.
 
 ### Releases
 
@@ -130,21 +109,19 @@ monorepo {
     release {
         globalTagPrefix = "release"       // prefix for all tags and branches; default "release"
         primaryBranchScope = "minor"      // version bump on the primary branch; "minor" or "major"; default "minor"
-        releaseBranchPatterns = listOf(   // regex patterns for allowed release branches
-            "^main$",
-            "^release/.*"
-        )
     }
 }
 ```
 
-#### `createReleaseBranchesForChangedProjects`
+#### `buildChangedProjectsAndCreateReleaseBranches`
 
-Builds all opted-in projects that changed since the configured commit ref, then releases each one:
+The CI post-merge task. Builds all changed projects, creates release branches atomically for opted-in projects, and updates the last-successful-build tag. Fails fast if the current branch is not `primaryBranch`.
 
 ```bash
-./gradlew createReleaseBranchesForChangedProjects -Pmonorepo.commitRef=abc123
+./gradlew buildChangedProjectsAndCreateReleaseBranches
 ```
+
+Release branches are created using a two-phase atomic approach: all branches are created locally first, then pushed together via `git push --atomic`. If any step fails, all local branches are rolled back and the tag is not updated.
 
 #### `:subproject:release`
 
@@ -208,7 +185,7 @@ monorepoProject { release { enabled = true } }
 A developer has modified `:shared-module` on a feature branch. To see what's affected before opening a PR:
 
 ```bash
-./gradlew printChangedProjectsFromBranch
+./gradlew printChangedProjects
 ```
 
 ```
@@ -222,21 +199,21 @@ Changed projects:
 
 `:app1` and `:app2` appear because they depend on `:shared-module` — the plugin resolves transitive impact automatically from the Gradle dependency graph.
 
-Then build everything affected against the configured `baseBranch` (set in `monorepo { build { } }`, defaults to `"main"`) to verify it compiles before opening the PR:
+Then build everything affected to verify it compiles before opening the PR:
 
 ```bash
-./gradlew buildChangedProjectsFromBranch
+./gradlew buildChangedProjects
 ```
 
 ### Releasing from main
 
-The PR is merged into `main` and CI triggers on the merge commit. Using the default `HEAD~1` ref, which compares the merge commit against the commit before it:
+The PR is merged into `main` and CI triggers on the merge commit. The plugin compares HEAD against the `monorepo/last-successful-build` tag to find what changed since the last green build:
 
 ```bash
-./gradlew createReleaseBranchesForChangedProjects
+./gradlew buildChangedProjectsAndCreateReleaseBranches
 ```
 
-`:shared-module` changed, so both apps are included via transitive impact. `:shared-module` itself is skipped because it isn't opted in to releases. `createReleaseBranchesForChangedProjects` creates a release branch for each opted-in project — no tags are created at this step.
+`:shared-module` changed, so both apps are included via transitive impact. `:shared-module` itself is skipped because it isn't opted in to releases. The task builds all affected projects, creates release branches atomically, and updates the tag — all in one step.
 
 ```
 Created release branches for: :app1, :app2
@@ -256,7 +233,7 @@ A separate CI/CD pipeline configured to trigger on pushes to `release/**` branch
 
 Wire your publish step to the `postRelease` lifecycle hook so it runs automatically after tagging.
 
-> **Tip:** If the pipeline squashes commits or triggers on multiple commits at once, override the ref with `-Pmonorepo.commitRef=<sha>` pointing to the last successful build.
+> **Tip:** If a build fails, the tag stays at the last green state. The next successful build will automatically pick up all changes since then — nothing is lost.
 
 ### Patching a release branch
 
@@ -270,13 +247,18 @@ The plugin detects it is on a release branch and applies a patch bump. Tag `rele
 
 ## Configuration Reference
 
+### `monorepo { }`
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `primaryBranch` | String | `"main"` | Main integration branch; used as fallback ref (`origin/{primaryBranch}`) when the tag doesn't exist, and as branch guard for `buildChangedProjectsAndCreateReleaseBranches` |
+
 ### `monorepo { build { } }`
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| `baseBranch` | String | `"main"` | The git branch to compare against (branch-mode tasks) |
-| `commitRef` | String | `"HEAD~1"` | Commit SHA, tag, or ref expression to compare against HEAD (ref-mode tasks). Can also be supplied at runtime via `-Pmonorepo.commitRef=<sha>`, which takes precedence over the DSL value |
-| `includeUntracked` | Boolean | `true` | Whether to include untracked files in detection (branch-mode only) |
+| `lastSuccessfulBuildTag` | String | `"monorepo/last-successful-build"` | Tag name used as the anchor for change detection; updated automatically after successful builds |
+| `includeUntracked` | Boolean | `true` | Whether to include untracked, staged, and working-tree files in detection |
 | `excludePatterns` | List\<String\> | `[]` | Regex patterns for files to exclude globally across all projects |
 
 ### `monorepoProject { build { } }`
@@ -292,8 +274,7 @@ Applied per subproject. Patterns are matched against paths **relative to the sub
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | `globalTagPrefix` | String | `"release"` | Prefix used in all tag and release branch names |
-| `primaryBranchScope` | String | `"minor"` | Version bump scope when releasing from the primary branch; `"minor"` or `"major"` |
-| `releaseBranchPatterns` | List\<String\> | `["^main$", "^release/.*"]` | Regex patterns for branches from which `createReleaseBranchesForChangedProjects` is permitted to run |
+| `primaryBranchScope` | String | `"minor"` | Version bump scope when creating release branches from the primary branch; `"minor"` or `"major"` |
 
 ### `monorepoProject { release { } }`
 
@@ -313,14 +294,14 @@ Ensure you're running the task in a directory that's part of a git repository. T
 ### "Git diff command failed"
 
 This can happen if:
-- The base branch doesn't exist locally or remotely
+- The `lastSuccessfulBuildTag` doesn't exist and the fallback `origin/{primaryBranch}` isn't available
 - You haven't fetched the remote branch (`git fetch origin`)
 - Git is not installed or not in the PATH
 
 Solution:
 ```bash
 git fetch origin
-./gradlew printChangedProjectsFromBranch
+./gradlew printChangedProjects
 ```
 
 ### No projects detected despite changes
@@ -328,7 +309,7 @@ git fetch origin
 Check your `excludePatterns` configuration - you may be inadvertently excluding files. Enable logging to see what files are being detected:
 
 ```bash
-./gradlew printChangedProjectsFromBranch --info
+./gradlew printChangedProjects --info
 ```
 
 ### Root project always shows as changed

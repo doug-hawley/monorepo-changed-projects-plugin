@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [Unreleased]
+
+### Breaking Changes
+
+* **Unified change detection model** — replaced dual branch-mode/ref-mode with a single tag-based model anchored on `monorepo/last-successful-build`. The following DSL properties and tasks have been removed:
+  * Removed `baseBranch` and `commitRef` from `monorepo { build { } }` — replaced by `lastSuccessfulBuildTag` and `primaryBranch`
+  * Removed `releaseBranchPatterns` from `monorepo { release { } }` — the new aggregator task uses a `primaryBranch` guard instead
+  * Removed `-Pmonorepo.commitRef` runtime override
+  * Removed tasks: `printChangedProjectsFromBranch`, `printChangedProjectsFromRef`, `buildChangedProjectsFromBranch`, `buildChangedProjectsFromRef`, `writeChangedProjectsFromRef`, `createReleaseBranch` (per-subproject), `createReleaseBranchesForChangedProjects`
+
+### Features
+
+* add `primaryBranch` property on root `monorepo { }` extension (default: `"main"`)
+* add `lastSuccessfulBuildTag` property for tag-based change detection (default: `"monorepo/last-successful-build"`)
+* add unified `printChangedProjects` and `buildChangedProjects` tasks replacing 6 old tasks
+* add `buildChangedProjectsAndCreateReleaseBranches` aggregator task with branch guard, atomic release branch creation, and automatic tag update
+* add `AtomicReleaseBranchCreator` for two-phase branch creation with rollback on failure
+* add `LastSuccessfulBuildTagUpdater` for automatic tag advancement after successful builds
+
 ## [0.3.3](https://github.com/doug-hawley/monorepo-build-release-plugin/compare/v0.3.2...v0.3.3) (2026-03-04)
 
 

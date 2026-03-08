@@ -38,6 +38,12 @@ object StandardReleaseTestProject {
                     primaryBranchScope = "$primaryBranchScope"
                 }
             }
+
+            allprojects {
+                repositories {
+                    mavenCentral()
+                }
+            }
             """.trimIndent()
         )
 
@@ -53,6 +59,7 @@ object StandardReleaseTestProject {
         File(projectDir, ".gitignore").writeText(
             """
             .gradle/
+            .kotlin/
             build/
             """.trimIndent()
         )
@@ -129,6 +136,12 @@ object StandardReleaseTestProject {
                     primaryBranchScope = "$primaryBranchScope"
                 }
             }
+
+            allprojects {
+                repositories {
+                    mavenCentral()
+                }
+            }
             """.trimIndent()
         )
 
@@ -143,6 +156,7 @@ object StandardReleaseTestProject {
         File(projectDir, ".gitignore").writeText(
             """
             .gradle/
+            .kotlin/
             build/
             """.trimIndent()
         )

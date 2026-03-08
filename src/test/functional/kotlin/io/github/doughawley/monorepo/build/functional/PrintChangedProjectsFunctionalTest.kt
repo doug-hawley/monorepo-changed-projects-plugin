@@ -219,40 +219,31 @@ class PrintChangedProjectsFunctionalTest : FunSpec({
         )
     }
 
-    // --- Ref-based scenarios (formerly ref-mode, now using tag/fallback) ---
+    // --- Baseline scenarios: printChangedProjects always uses origin/{primaryBranch} ---
 
-    test("printChangedProjects detects directly changed project using tag as base ref") {
+    test("printChangedProjects uses origin/main baseline regardless of tag presence") {
         // given
-        val project = StandardTestProject.createAndInitialize(
-            testProjectListener.getTestProjectDir(),
-            withRemote = false
-        )
-        val initialSha = project.getLastCommitSha()
+        val project = testProjectListener.createStandardProject()
 
-        // Create a tag at the initial commit to simulate last-successful-build
-        project.executeGitCommand("tag", "monorepo/last-successful-build", initialSha)
+        // Create a tag at HEAD — dev tasks should ignore it
+        project.executeGitCommand("tag", "monorepo/last-successful-build")
 
-        // Make a change to common-lib and commit
+        // Make a change to common-lib and commit (not pushed)
         project.appendToFile(Files.COMMON_LIB_SOURCE, "\n// Modified")
         project.commitAll("Modify common-lib")
 
         // when
         val result = project.runTask("printChangedProjects")
 
-        // then
+        // then: detects change relative to origin/main, not the tag
         result.task(":printChangedProjects")?.outcome shouldBe TaskOutcome.SUCCESS
         val changed = result.extractChangedProjects()
         changed shouldContain Projects.COMMON_LIB
     }
 
-    test("printChangedProjects detects transitive dependents using tag") {
+    test("printChangedProjects detects transitive dependents from origin/main baseline") {
         // given
-        val project = StandardTestProject.createAndInitialize(
-            testProjectListener.getTestProjectDir(),
-            withRemote = false
-        )
-        val initialSha = project.getLastCommitSha()
-        project.executeGitCommand("tag", "monorepo/last-successful-build", initialSha)
+        val project = testProjectListener.createStandardProject()
 
         project.appendToFile(Files.COMMON_LIB_SOURCE, "\n// Modified")
         project.commitAll("Modify common-lib")
@@ -272,36 +263,37 @@ class PrintChangedProjectsFunctionalTest : FunSpec({
         )
     }
 
-    test("printChangedProjects only shows projects changed since the tag") {
+    test("printChangedProjects ignores tag and shows all changes since origin/main") {
         // given
-        val project = StandardTestProject.createAndInitialize(
-            testProjectListener.getTestProjectDir(),
-            withRemote = false
-        )
+        val project = testProjectListener.createStandardProject()
 
         // Change common-lib and commit
         project.appendToFile(Files.COMMON_LIB_SOURCE, "\n// First change")
         project.commitAll("Modify common-lib")
 
-        // Tag after first change — simulates successful build
+        // Create tag after first change — dev tasks should ignore it
         project.executeGitCommand("tag", "monorepo/last-successful-build")
 
         // Change only module1 in a second commit
         project.appendToFile(Files.MODULE1_SOURCE, "\n// Second change")
         project.commitAll("Modify module1")
 
-        // when: compare against the tag — only module1 changes are newer
+        // when: printChangedProjects uses origin/main, so both changes are visible
         val result = project.runTask("printChangedProjects")
 
-        // then
+        // then: both common-lib and module1 changes show (everything since origin/main)
         result.task(":printChangedProjects")?.outcome shouldBe TaskOutcome.SUCCESS
         val changed = result.extractChangedProjects()
-        changed shouldContain Projects.MODULE1
-        changed shouldContain Projects.APP1
-        changed shouldNotContain Projects.COMMON_LIB
+        changed shouldContainAll setOf(
+            Projects.COMMON_LIB,
+            Projects.MODULE1,
+            Projects.MODULE2,
+            Projects.APP1,
+            Projects.APP2
+        )
     }
 
-    test("printChangedProjects reports which ref was used in output header") {
+    test("printChangedProjects reports origin/main in output header") {
         // given
         val project = testProjectListener.createStandardProject()
 
@@ -313,6 +305,6 @@ class PrintChangedProjectsFunctionalTest : FunSpec({
 
         // then
         result.task(":printChangedProjects")?.outcome shouldBe TaskOutcome.SUCCESS
-        result.output shouldContain "Changed projects (since"
+        result.output shouldContain "Changed projects (since origin/main):"
     }
 })

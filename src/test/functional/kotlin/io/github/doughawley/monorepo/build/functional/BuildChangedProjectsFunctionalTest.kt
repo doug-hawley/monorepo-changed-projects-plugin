@@ -187,16 +187,12 @@ class BuildChangedProjectsFunctionalTest : FunSpec({
         )
     }
 
-    // --- Tag-based scenarios (formerly ref-mode) ---
+    // --- Baseline scenarios: buildChangedProjects always uses origin/{primaryBranch} ---
 
-    test("buildChangedProjects builds directly changed project using tag as base ref") {
+    test("buildChangedProjects uses origin/main baseline regardless of tag presence") {
         // given
-        val project = StandardTestProject.createAndInitialize(
-            testProjectListener.getTestProjectDir(),
-            withRemote = false
-        )
-        val initialSha = project.getLastCommitSha()
-        project.executeGitCommand("tag", "monorepo/last-successful-build", initialSha)
+        val project = testProjectListener.createStandardProject()
+        project.executeGitCommand("tag", "monorepo/last-successful-build")
 
         project.appendToFile(Files.APP2_SOURCE, "\n// Modified")
         project.commitAll("Modify app2")
@@ -204,7 +200,7 @@ class BuildChangedProjectsFunctionalTest : FunSpec({
         // when
         val result = project.runTask("buildChangedProjects")
 
-        // then
+        // then: uses origin/main, not tag
         result.task(":buildChangedProjects")?.outcome shouldBe TaskOutcome.SUCCESS
         val built = result.extractBuiltProjects()
         built shouldContain Projects.APP2
@@ -212,14 +208,9 @@ class BuildChangedProjectsFunctionalTest : FunSpec({
         built shouldNotContain Projects.MODULE1
     }
 
-    test("buildChangedProjects builds all projects affected by common-lib change using tag") {
+    test("buildChangedProjects builds all affected projects from origin/main baseline") {
         // given
-        val project = StandardTestProject.createAndInitialize(
-            testProjectListener.getTestProjectDir(),
-            withRemote = false
-        )
-        val initialSha = project.getLastCommitSha()
-        project.executeGitCommand("tag", "monorepo/last-successful-build", initialSha)
+        val project = testProjectListener.createStandardProject()
 
         project.appendToFile(Files.COMMON_LIB_SOURCE, "\n// Modified")
         project.commitAll("Modify common-lib")
@@ -239,35 +230,16 @@ class BuildChangedProjectsFunctionalTest : FunSpec({
         )
     }
 
-    test("buildChangedProjects reports no changes when tag points at HEAD") {
-        // given
-        val project = StandardTestProject.createAndInitialize(
-            testProjectListener.getTestProjectDir(),
-            withRemote = false
-        )
-        project.executeGitCommand("tag", "monorepo/last-successful-build")
-
-        // when
-        val result = project.runTask("buildChangedProjects")
-
-        // then
-        result.task(":buildChangedProjects")?.outcome shouldBe TaskOutcome.SUCCESS
-        result.output shouldContain "No projects have changed - nothing to build"
-    }
-
-    test("buildChangedProjects falls back to origin/main when tag does not exist") {
+    test("buildChangedProjects always uses origin/main even without tag") {
         // given: project with remote but no last-successful-build tag
-        val project = StandardTestProject.createAndInitialize(
-            testProjectListener.getTestProjectDir(),
-            withRemote = true
-        )
+        val project = testProjectListener.createStandardProject()
         project.appendToFile(Files.APP1_SOURCE, "\n// Modified")
         project.commitAll("Change app1")
 
         // when
         val result = project.runTask("buildChangedProjects")
 
-        // then: falls back to origin/main, detects the change
+        // then: uses origin/main, detects the change
         result.task(":buildChangedProjects")?.outcome shouldBe TaskOutcome.SUCCESS
         val built = result.extractBuiltProjects()
         built shouldContain Projects.APP1
@@ -275,10 +247,7 @@ class BuildChangedProjectsFunctionalTest : FunSpec({
 
     test("buildChangedProjects does not update the last-successful-build tag") {
         // given: create a tag, make a change, run buildChangedProjects
-        val project = StandardTestProject.createAndInitialize(
-            testProjectListener.getTestProjectDir(),
-            withRemote = true
-        )
+        val project = testProjectListener.createStandardProject()
         project.executeGitCommand("tag", "monorepo/last-successful-build")
         project.executeGitCommand("push", "origin", "monorepo/last-successful-build")
         val tagCommitBefore = project.getLastCommitSha()

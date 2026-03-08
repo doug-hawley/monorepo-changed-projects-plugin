@@ -1,5 +1,6 @@
 package io.github.doughawley.monorepo
 
+import io.github.doughawley.monorepo.build.ChangeDetectionResult
 import io.github.doughawley.monorepo.build.MonorepoBuildExtension
 import io.github.doughawley.monorepo.build.git.LastSuccessfulBuildTagUpdater
 import io.github.doughawley.monorepo.build.domain.MonorepoProjects
@@ -77,11 +78,29 @@ class MonorepoBuildReleasePlugin @Inject constructor(
         project.gradle.projectsEvaluated {
             if (rootBuildExtension.computationGuard.compareAndSet(false, true)) {
                 try {
-                    val resolvedRef = resolveBaseRef(project.rootProject, rootExtension)
-                    rootBuildExtension.resolvedBaseRef = resolvedRef
-                    computeMetadata(project.rootProject, rootBuildExtension, resolvedRef)
-                    wireDependsOn(project, "buildChangedProjects", rootBuildExtension.allAffectedProjects)
-                    wireDependsOn(project, "buildChangedProjectsAndCreateReleaseBranches", rootBuildExtension.allAffectedProjects)
+                    // CI task: use tag with fallback to origin/{primaryBranch}
+                    val ciBaseRef = resolveCiBaseRef(project.rootProject, rootExtension)
+                    rootBuildExtension.ciResolvedBaseRef = ciBaseRef
+
+                    // Dev tasks: diff against origin/{primaryBranch}, falling back to CI baseline
+                    val devBaseRef = resolveDevBaseRef(project.rootProject, rootExtension, ciBaseRef)
+                    rootBuildExtension.resolvedBaseRef = devBaseRef
+
+                    val devResult = detectChangedProjects(project.rootProject, rootBuildExtension, devBaseRef)
+                    rootBuildExtension.monorepoProjects = devResult.monorepoProjects
+                    rootBuildExtension.allAffectedProjects = devResult.allAffectedProjects
+                    wireDependsOn(project, "buildChangedProjects", devResult.allAffectedProjects)
+
+                    if (ciBaseRef == devBaseRef) {
+                        rootBuildExtension.ciMonorepoProjects = devResult.monorepoProjects
+                        rootBuildExtension.ciAllAffectedProjects = devResult.allAffectedProjects
+                    } else {
+                        val ciResult = detectChangedProjects(project.rootProject, rootBuildExtension, ciBaseRef)
+                        rootBuildExtension.ciMonorepoProjects = ciResult.monorepoProjects
+                        rootBuildExtension.ciAllAffectedProjects = ciResult.allAffectedProjects
+                    }
+                    wireDependsOn(project, "buildChangedProjectsAndCreateReleaseBranches", rootBuildExtension.ciAllAffectedProjects)
+
                     rootBuildExtension.metadataComputed = true
                     project.logger.debug("Changed project metadata computed successfully in configuration phase")
                 } catch (e: GradleException) {
@@ -151,8 +170,8 @@ class MonorepoBuildReleasePlugin @Inject constructor(
                     )
                 }
 
-                // Collect opted-in changed projects
-                val changedProjects = buildExt.allAffectedProjects
+                // Collect opted-in changed projects (using CI baseline)
+                val changedProjects = buildExt.ciAllAffectedProjects
                 val optedInProjects = changedProjects.mapNotNull { projectPath ->
                     val targetProject = project.rootProject.findProject(projectPath) ?: return@mapNotNull null
                     val projectExt = targetProject.extensions.findByType(MonorepoProjectExtension::class.java)
@@ -203,21 +222,38 @@ class MonorepoBuildReleasePlugin @Inject constructor(
     }
 
     /**
-     * Resolves the base ref for change detection.
+     * Resolves the dev base ref for `printChangedProjects` and `buildChangedProjects`.
+     * Uses `origin/<primaryBranch>` when available, otherwise falls back to the CI baseline.
+     */
+    private fun resolveDevBaseRef(project: Project, rootExtension: MonorepoExtension, ciBaseRef: String): String {
+        val devRef = "origin/${rootExtension.primaryBranch}"
+        val gitRepository = GitRepository(project.rootDir, project.logger)
+
+        if (gitRepository.refExists(devRef)) {
+            project.logger.info("Using '$devRef' as dev base ref")
+            return devRef
+        }
+
+        project.logger.info("'$devRef' not found, dev tasks will use CI baseline '$ciBaseRef'")
+        return ciBaseRef
+    }
+
+    /**
+     * Resolves the CI base ref for `buildChangedProjectsAndCreateReleaseBranches`.
      * Uses the last-successful-build tag if it exists, otherwise falls back to origin/<primaryBranch>.
      */
-    private fun resolveBaseRef(project: Project, rootExtension: MonorepoExtension): String {
+    private fun resolveCiBaseRef(project: Project, rootExtension: MonorepoExtension): String {
         val buildExtension = rootExtension.build
         val gitRepository = GitRepository(project.rootDir, project.logger)
         val tag = buildExtension.lastSuccessfulBuildTag
 
         if (gitRepository.refExists(tag)) {
-            project.logger.info("Using last-successful-build tag '$tag' as base ref")
+            project.logger.info("Using last-successful-build tag '$tag' as CI base ref")
             return tag
         }
 
         val fallback = "origin/${rootExtension.primaryBranch}"
-        project.logger.info("Tag '$tag' not found, falling back to '$fallback'")
+        project.logger.info("Tag '$tag' not found, CI base ref falling back to '$fallback'")
         return fallback
     }
 
@@ -244,10 +280,24 @@ class MonorepoBuildReleasePlugin @Inject constructor(
     }
 
     /**
-     * Computes changed project metadata.
+     * Computes changed project metadata and stores it in the extension.
      * Called during the configuration phase to ensure all dependencies are fully resolved.
      */
     internal fun computeMetadata(project: Project, extension: MonorepoBuildExtension, resolvedBaseRef: String) {
+        val result = detectChangedProjects(project, extension, resolvedBaseRef)
+        extension.monorepoProjects = result.monorepoProjects
+        extension.allAffectedProjects = result.allAffectedProjects
+    }
+
+    /**
+     * Detects changed projects by diffing against a resolved base ref.
+     * Returns the result without storing it, so callers can decide where to store it.
+     */
+    private fun detectChangedProjects(
+        project: Project,
+        extension: MonorepoBuildExtension,
+        resolvedBaseRef: String
+    ): ChangeDetectionResult {
         val logger = project.logger
 
         logger.info("Computing changed project metadata...")
@@ -265,7 +315,6 @@ class MonorepoBuildReleasePlugin @Inject constructor(
         val metadataMap = metadataFactory.buildProjectMetadataMap(project.rootProject, filteredChangedFilesMap)
 
         val monorepoProjects = MonorepoProjects(metadataMap.values.toList())
-        extension.monorepoProjects = monorepoProjects
 
         val allAffectedProjects = monorepoProjects.getChangedProjectPaths()
             .filter { path ->
@@ -276,10 +325,11 @@ class MonorepoBuildReleasePlugin @Inject constructor(
                 }
             }
             .toSet()
-        extension.allAffectedProjects = allAffectedProjects
 
         logger.info("Changed files count: ${changedFiles.size}")
         logger.info("All affected projects (including dependents): ${allAffectedProjects.joinToString(", ").ifEmpty { "none" }}")
+
+        return ChangeDetectionResult(monorepoProjects, allAffectedProjects)
     }
 
     /**

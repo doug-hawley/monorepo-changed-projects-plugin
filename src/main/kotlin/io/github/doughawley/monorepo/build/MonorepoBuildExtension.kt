@@ -8,9 +8,12 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 open class MonorepoBuildExtension {
     /**
-     * The tag name that the plugin reads from and writes to for tracking the
-     * last successful build. Change detection compares HEAD against this tag
-     * (or falls back to `origin/<primaryBranch>` when the tag doesn't exist).
+     * The tag name used by the CI task (`buildChangedProjectsAndCreateReleaseBranches`)
+     * for incremental change detection. The CI task compares HEAD against this tag,
+     * falling back to `origin/<primaryBranch>` when the tag doesn't exist.
+     *
+     * Dev tasks (`printChangedProjects`, `buildChangedProjects`) always use
+     * `origin/<primaryBranch>` regardless of this tag.
      */
     var lastSuccessfulBuildTag: String = "monorepo/last-successful-build"
 
@@ -25,24 +28,49 @@ open class MonorepoBuildExtension {
     var excludePatterns: List<String> = listOf()
 
     /**
-     * The ref that was actually used for change detection (tag or fallback).
+     * The ref used for dev-facing change detection (`origin/<primaryBranch>`).
      * Set internally after ref resolution; available for inspection by tasks and build scripts.
      */
     var resolvedBaseRef: String = ""
         internal set
 
     /**
-     * All monorepo projects with their metadata and change information.
+     * All monorepo projects with their metadata and change information,
+     * computed against the dev baseline (`origin/<primaryBranch>`).
      * Available after configuration phase completes.
      */
     var monorepoProjects: MonorepoProjects = MonorepoProjects(emptyList())
         internal set
 
     /**
-     * Set of all affected project paths (including those affected by dependency changes).
+     * Set of all affected project paths (including those affected by dependency changes),
+     * computed against the dev baseline (`origin/<primaryBranch>`).
      * Available after configuration phase completes.
      */
     var allAffectedProjects: Set<String> = emptySet()
+        internal set
+
+    /**
+     * The ref used for CI change detection (last-successful-build tag or fallback).
+     * Set internally; available for inspection by tasks and build scripts.
+     */
+    var ciResolvedBaseRef: String = ""
+        internal set
+
+    /**
+     * All monorepo projects with their metadata and change information,
+     * computed against the CI baseline (last-successful-build tag or fallback).
+     * Available after configuration phase completes.
+     */
+    var ciMonorepoProjects: MonorepoProjects = MonorepoProjects(emptyList())
+        internal set
+
+    /**
+     * Set of all affected project paths computed against the CI baseline.
+     * Used by `buildChangedProjectsAndCreateReleaseBranches`.
+     * Available after configuration phase completes.
+     */
+    var ciAllAffectedProjects: Set<String> = emptySet()
         internal set
 
     /**

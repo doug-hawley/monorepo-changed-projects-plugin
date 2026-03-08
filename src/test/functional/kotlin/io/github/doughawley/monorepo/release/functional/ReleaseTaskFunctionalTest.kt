@@ -151,6 +151,12 @@ class ReleaseTaskFunctionalTest : FunSpec({
             plugins {
                 id("io.github.doug-hawley.monorepo-build-release-plugin")
             }
+
+            allprojects {
+                repositories {
+                    mavenCentral()
+                }
+            }
             """.trimIndent()
         )
         File(projectDir, "settings.gradle.kts").writeText(
@@ -159,7 +165,7 @@ class ReleaseTaskFunctionalTest : FunSpec({
             include(":app")
             """.trimIndent()
         )
-        File(projectDir, ".gitignore").writeText(".gradle/\nbuild/")
+        File(projectDir, ".gitignore").writeText(".gradle/\n.kotlin/\nbuild/")
 
         val appDir = File(projectDir, "app")
         appDir.mkdirs()
@@ -204,6 +210,12 @@ class ReleaseTaskFunctionalTest : FunSpec({
             plugins {
                 id("io.github.doug-hawley.monorepo-build-release-plugin")
             }
+
+            allprojects {
+                repositories {
+                    mavenCentral()
+                }
+            }
             """.trimIndent()
         )
         File(projectDir, "settings.gradle.kts").writeText(
@@ -212,7 +224,7 @@ class ReleaseTaskFunctionalTest : FunSpec({
             include(":services:auth")
             """.trimIndent()
         )
-        File(projectDir, ".gitignore").writeText(".gradle/\nbuild/")
+        File(projectDir, ".gitignore").writeText(".gradle/\n.kotlin/\nbuild/")
 
         val authDir = File(projectDir, "services/auth")
         authDir.mkdirs()
@@ -300,6 +312,12 @@ class ReleaseTaskFunctionalTest : FunSpec({
             plugins {
                 id("io.github.doug-hawley.monorepo-build-release-plugin")
             }
+
+            allprojects {
+                repositories {
+                    mavenCentral()
+                }
+            }
             """.trimIndent()
         )
         File(projectDir, "settings.gradle.kts").writeText(
@@ -309,7 +327,7 @@ class ReleaseTaskFunctionalTest : FunSpec({
             include(":lib")
             """.trimIndent()
         )
-        File(projectDir, ".gitignore").writeText(".gradle/\nbuild/")
+        File(projectDir, ".gitignore").writeText(".gradle/\n.kotlin/\nbuild/")
 
         listOf("app", "lib").forEach { name ->
             val dir = File(projectDir, name)
@@ -355,7 +373,7 @@ class ReleaseTaskFunctionalTest : FunSpec({
         project.createBranch("release/app/v0.1.x")
         project.executeGitPush("release/app/v0.1.x")
         project.createFakeBuiltArtifact()
-        project.modifyFile("app/src/main/kotlin/com/example/App.kt", "// modified content")
+        project.modifyFile("app/dirty.txt", "uncommitted change")
 
         // when
         val result = project.runTaskAndFail(":app:release")
@@ -370,8 +388,8 @@ class ReleaseTaskFunctionalTest : FunSpec({
         project.createBranch("release/app/v0.1.x")
         project.executeGitPush("release/app/v0.1.x")
         project.createFakeBuiltArtifact()
-        project.modifyFile("app/src/main/kotlin/com/example/App.kt", "// staged modification")
-        project.stageFile("app/src/main/kotlin/com/example/App.kt")
+        project.modifyFile("app/dirty.txt", "staged modification")
+        project.stageFile("app/dirty.txt")
 
         // when
         val result = project.runTaskAndFail(":app:release")
@@ -398,30 +416,18 @@ class ReleaseTaskFunctionalTest : FunSpec({
         result.output shouldContain "Tag 'release/app/v0.1.1' already exists. This version has already been released."
     }
 
-    test("build outputs missing causes release to fail mentioning build task") {
+    test("release task automatically runs build before releasing") {
         // given
         val project = StandardReleaseTestProject.createAndInitialize(testListener.getTestProjectDir())
         project.createBranch("release/app/v0.1.x")
         project.executeGitPush("release/app/v0.1.x")
-
-        // when
-        val result = project.runTaskAndFail(":app:release")
-
-        // then
-        result.output shouldContain "Project must be built before releasing — run :app:build first."
-    }
-
-    test("build outputs present allows release to proceed") {
-        // given
-        val project = StandardReleaseTestProject.createAndInitialize(testListener.getTestProjectDir())
-        project.createBranch("release/app/v0.1.x")
-        project.executeGitPush("release/app/v0.1.x")
-        project.createFakeBuiltArtifact()
+        // deliberately not creating a fake built artifact — build task should produce one
 
         // when
         val result = project.runTask(":app:release")
 
         // then
+        result.task(":app:build")?.outcome shouldBe TaskOutcome.SUCCESS
         result.task(":app:release")?.outcome shouldBe TaskOutcome.SUCCESS
     }
 
@@ -521,6 +527,12 @@ class ReleaseTaskFunctionalTest : FunSpec({
             plugins {
                 id("io.github.doug-hawley.monorepo-build-release-plugin")
             }
+
+            allprojects {
+                repositories {
+                    mavenCentral()
+                }
+            }
             """.trimIndent()
         )
         File(projectDir, "settings.gradle.kts").writeText(
@@ -529,7 +541,7 @@ class ReleaseTaskFunctionalTest : FunSpec({
             include(":app")
             """.trimIndent()
         )
-        File(projectDir, ".gitignore").writeText(".gradle/\nbuild/")
+        File(projectDir, ".gitignore").writeText(".gradle/\n.kotlin/\nbuild/")
         val appDir = File(projectDir, "app")
         appDir.mkdirs()
         File(appDir, "build.gradle.kts").writeText(
@@ -617,6 +629,12 @@ class ReleaseTaskFunctionalTest : FunSpec({
             plugins {
                 id("io.github.doug-hawley.monorepo-build-release-plugin")
             }
+
+            allprojects {
+                repositories {
+                    mavenCentral()
+                }
+            }
             """.trimIndent()
         )
         File(projectDir, "settings.gradle.kts").writeText(
@@ -625,7 +643,7 @@ class ReleaseTaskFunctionalTest : FunSpec({
             include(":app")
             """.trimIndent()
         )
-        File(projectDir, ".gitignore").writeText(".gradle/\nbuild/")
+        File(projectDir, ".gitignore").writeText(".gradle/\n.kotlin/\nbuild/")
         val appDir = File(projectDir, "app")
         appDir.mkdirs()
         File(appDir, "build.gradle.kts").writeText(
@@ -663,7 +681,7 @@ class ReleaseTaskFunctionalTest : FunSpec({
     }
 
     test("postRelease hook does not run if release task fails") {
-        // given: release will fail because no build output
+        // given: release will fail because of uncommitted changes
         val projectDir = testListener.getTestProjectDir()
         val remoteDir = File(projectDir.parentFile, "${projectDir.name}-remote.git")
 
@@ -671,6 +689,12 @@ class ReleaseTaskFunctionalTest : FunSpec({
             """
             plugins {
                 id("io.github.doug-hawley.monorepo-build-release-plugin")
+            }
+
+            allprojects {
+                repositories {
+                    mavenCentral()
+                }
             }
             """.trimIndent()
         )
@@ -680,7 +704,7 @@ class ReleaseTaskFunctionalTest : FunSpec({
             include(":app")
             """.trimIndent()
         )
-        File(projectDir, ".gitignore").writeText(".gradle/\nbuild/")
+        File(projectDir, ".gitignore").writeText(".gradle/\n.kotlin/\nbuild/")
         val appDir = File(projectDir, "app")
         appDir.mkdirs()
         File(appDir, "build.gradle.kts").writeText(
@@ -707,7 +731,7 @@ class ReleaseTaskFunctionalTest : FunSpec({
         project.pushToRemote()
         project.createBranch("release/app/v0.1.x")
         project.executeGitPush("release/app/v0.1.x")
-        // deliberately no createFakeBuiltArtifact()
+        project.modifyFile("app/dirty.txt", "uncommitted change")
 
         // when
         val result = project.runTaskAndFail(":app:release")
@@ -730,6 +754,12 @@ class ReleaseTaskFunctionalTest : FunSpec({
             plugins {
                 id("io.github.doug-hawley.monorepo-build-release-plugin")
             }
+
+            allprojects {
+                repositories {
+                    mavenCentral()
+                }
+            }
             """.trimIndent()
         )
         File(projectDir, "settings.gradle.kts").writeText(
@@ -738,7 +768,7 @@ class ReleaseTaskFunctionalTest : FunSpec({
             include(":lib")
             """.trimIndent()
         )
-        File(projectDir, ".gitignore").writeText(".gradle/\nbuild/")
+        File(projectDir, ".gitignore").writeText(".gradle/\n.kotlin/\nbuild/")
         val libDir = File(projectDir, "lib")
         libDir.mkdirs()
         File(libDir, "build.gradle.kts").writeText(
@@ -771,6 +801,12 @@ class ReleaseTaskFunctionalTest : FunSpec({
             plugins {
                 id("io.github.doug-hawley.monorepo-build-release-plugin")
             }
+
+            allprojects {
+                repositories {
+                    mavenCentral()
+                }
+            }
             """.trimIndent()
         )
         File(projectDir, "settings.gradle.kts").writeText(
@@ -779,7 +815,7 @@ class ReleaseTaskFunctionalTest : FunSpec({
             include(":lib")
             """.trimIndent()
         )
-        File(projectDir, ".gitignore").writeText(".gradle/\nbuild/")
+        File(projectDir, ".gitignore").writeText(".gradle/\n.kotlin/\nbuild/")
         val libDir = File(projectDir, "lib")
         libDir.mkdirs()
         File(libDir, "build.gradle.kts").writeText(
@@ -821,6 +857,12 @@ class ReleaseTaskFunctionalTest : FunSpec({
             plugins {
                 id("io.github.doug-hawley.monorepo-build-release-plugin")
             }
+
+            allprojects {
+                repositories {
+                    mavenCentral()
+                }
+            }
             """.trimIndent()
         )
         File(projectDir, "settings.gradle.kts").writeText(
@@ -830,7 +872,7 @@ class ReleaseTaskFunctionalTest : FunSpec({
             include(":lib")
             """.trimIndent()
         )
-        File(projectDir, ".gitignore").writeText(".gradle/\nbuild/")
+        File(projectDir, ".gitignore").writeText(".gradle/\n.kotlin/\nbuild/")
 
         listOf("app", "lib").forEach { name ->
             val dir = File(projectDir, name)

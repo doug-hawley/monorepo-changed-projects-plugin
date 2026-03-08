@@ -347,6 +347,7 @@ class MonorepoBuildReleasePlugin @Inject constructor(
             this.projectConfig = config
             this.gitTagScanner = scanner
             this.gitReleaseExecutor = releaseExecutor
+            dependsOn("build")
             finalizedBy(postRelease)
         }
 

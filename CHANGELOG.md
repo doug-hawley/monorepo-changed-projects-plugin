@@ -4,6 +4,50 @@ All notable changes to this project will be documented in this file.
 
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.3.4](https://github.com/doug-hawley/monorepo-build-release-plugin/compare/v0.3.3...v0.3.4) (2026-03-08)
+
+
+### Features
+
+* add atomic release branch creation task ([a5d99d4](https://github.com/doug-hawley/monorepo-build-release-plugin/commit/a5d99d4971940ff65eca307c833508c5825d230f))
+* add last-successful-build tag update mechanism ([a855600](https://github.com/doug-hawley/monorepo-build-release-plugin/commit/a85560093a21e90c8e8bf16cf05a903ceb3a44e6))
+* restrict release task to matching release branches only ([c883a80](https://github.com/doug-hawley/monorepo-build-release-plugin/commit/c883a80de471115d4b6cc09b1f9a670146e85965))
+* unify change detection to single tag-based model ([d5ed295](https://github.com/doug-hawley/monorepo-build-release-plugin/commit/d5ed295bc5dc02c05821855b96a0a980996df68b))
+
+
+### Bug Fixes
+
+* gracefully handle initial commit when using relative parent refs ([befc917](https://github.com/doug-hawley/monorepo-build-release-plugin/commit/befc91774a7e08de1e75b230e2701be111b18e31))
+* resolve bugs, stale references, and deprecated API usage ([3bd93a0](https://github.com/doug-hawley/monorepo-build-release-plugin/commit/3bd93a07ec5557513fc54e88e6327017e8b09f3e))
+* use branch version line for initial release on release branches ([860cf50](https://github.com/doug-hawley/monorepo-build-release-plugin/commit/860cf5014a38b9e562bdfe121b84684d186a8d20))
+
+
+### Documentation
+
+* fix stale references to removed tasks and DSL properties ([56818ea](https://github.com/doug-hawley/monorepo-build-release-plugin/commit/56818ea3ff48efda1d5069e6d026d1cf9e90b527))
+* update documentation for unified change detection model ([d04230b](https://github.com/doug-hawley/monorepo-build-release-plugin/commit/d04230ba2456ae634b29e2df4bb1588845e58407))
+
+
+### Miscellaneous Chores
+
+* upgrade Gradle 8.12→9.4, Kotest 5.9.1→6.1.4, MockK 1.13.12→1.14.9 ([a0b6ba3](https://github.com/doug-hawley/monorepo-build-release-plugin/commit/a0b6ba389f34d007d762c61fe3b3d316fda143b6))
+
+
+### Code Refactoring
+
+* remove unused releaseBranchPatterns property ([a1f8657](https://github.com/doug-hawley/monorepo-build-release-plugin/commit/a1f8657acbc398aba211efb09bf584422b45eaac))
+* remove writeChangedProjectsFromRef task ([67af0cd](https://github.com/doug-hawley/monorepo-build-release-plugin/commit/67af0cd3e4e4b6c8a35ea7999fa286d4b35a8195))
+
+
+### Tests
+
+* add missing integration and functional test coverage ([0503850](https://github.com/doug-hawley/monorepo-build-release-plugin/commit/0503850738fe99d284e05b7fdb7fb558f8863c48))
+
+
+### Build System
+
+* **deps:** Bump actions/upload-artifact from 4 to 7 ([c6bf3a2](https://github.com/doug-hawley/monorepo-build-release-plugin/commit/c6bf3a211a94a3ab47ec01ca0920cc5dd79420cf))
+
 ## [Unreleased]
 
 ### Breaking Changes

@@ -10,7 +10,12 @@ open class MonorepoBuildExtension {
     /**
      * The tag name that the plugin reads from and writes to for tracking the
      * last successful build. Change detection compares HEAD against this tag.
-     * When the tag doesn't exist, all projects are treated as changed.
+     *
+     * During baseline resolution the plugin fetches this tag from origin
+     * (best-effort) to ensure the local copy is current, then checks whether
+     * it exists. If it does not, the plugin falls back to
+     * `origin/{primaryBranch}`. When neither ref is available, all projects
+     * are treated as changed.
      */
     var lastSuccessfulBuildTag: String = "monorepo/last-successful-build"
 
@@ -27,6 +32,9 @@ open class MonorepoBuildExtension {
     /**
      * The ref that was actually used for change detection, or null when no baseline exists
      * (all projects treated as changed). Set internally after ref resolution.
+     *
+     * This may be the [lastSuccessfulBuildTag], `origin/{primaryBranch}` (fallback),
+     * or null when neither ref is available.
      */
     var resolvedBaseRef: String? = null
         internal set

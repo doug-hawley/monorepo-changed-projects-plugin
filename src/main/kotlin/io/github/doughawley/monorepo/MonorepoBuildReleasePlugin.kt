@@ -206,21 +206,42 @@ class MonorepoBuildReleasePlugin @Inject constructor(
 
     /**
      * Resolves the base ref for change detection.
-     * Returns the last-successful-build tag if it exists, or null when no baseline exists
-     * (which causes all tracked files to be treated as changed).
+     *
+     * Resolution order:
+     * 1. Fetch the last-successful-build tag from origin (best-effort, updates local if remote has moved)
+     * 2. Fetch origin/{primaryBranch} (best-effort, ensures remote-tracking ref is current)
+     * 3. If the tag exists (now guaranteed current) → use it
+     * 4. Else if origin/{primaryBranch} exists → use it as fallback
+     * 5. Else → return null (all projects treated as changed)
+     *
+     * Fetch calls are best-effort: if they fail (no remote configured, network error, etc.),
+     * the method falls through to whatever refs exist locally.
      */
     private fun resolveBaseRef(project: Project, rootExtension: MonorepoExtension): String? {
         val buildExtension = rootExtension.build
         val gitRepository = GitRepository(project.rootDir, project.logger)
         val tag = buildExtension.lastSuccessfulBuildTag
+        val primaryBranch = rootExtension.primaryBranch
+
+        // Best-effort fetch: update the tag and remote-tracking branch from origin
+        gitRepository.fetchRef("origin", tag)
+        gitRepository.fetchRef("origin", primaryBranch)
 
         if (gitRepository.refExists(tag)) {
             project.logger.info("Using last-successful-build tag '$tag' as base ref")
             return tag
         }
 
+        val remoteBranch = "origin/$primaryBranch"
+        if (gitRepository.refExists(remoteBranch)) {
+            project.logger.lifecycle(
+                "Tag '$tag' not found — falling back to '$remoteBranch' as base ref."
+            )
+            return remoteBranch
+        }
+
         project.logger.lifecycle(
-            "Tag '$tag' not found — no baseline exists. " +
+            "Tag '$tag' not found and '$remoteBranch' is not available — no baseline exists. " +
             "All projects will be treated as changed."
         )
         return null

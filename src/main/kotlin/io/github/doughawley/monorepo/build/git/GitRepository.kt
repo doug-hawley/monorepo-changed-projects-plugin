@@ -89,6 +89,16 @@ open class GitRepository(
         return gitExecutor.execute(dir, "rev-parse", "--verify", ref).success
     }
 
+    /**
+     * Fetches a single ref from a remote.
+     * Returns true if the fetch succeeded, false otherwise (e.g. no remote configured,
+     * network error, ref not found on remote).
+     */
+    open fun fetchRef(remote: String, refspec: String): Boolean {
+        val dir = gitDir ?: return false
+        return gitExecutor.execute(dir, "fetch", remote, refspec, "--quiet").success
+    }
+
     private fun findGitRoot(startDir: File): File? {
         var current: File? = startDir
         while (current != null) {

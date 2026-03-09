@@ -250,7 +250,7 @@ class BuildChangedProjectsFunctionalTest : FunSpec({
         result.output shouldContain "No projects have changed - nothing to build"
     }
 
-    test("buildChangedProjects treats all projects as changed when tag does not exist") {
+    test("buildChangedProjects falls back to origin/main when tag does not exist") {
         // given: project with remote but no last-successful-build tag
         val project = StandardTestProject.createAndInitialize(
             testProjectListener.getTestProjectDir(),
@@ -258,10 +258,32 @@ class BuildChangedProjectsFunctionalTest : FunSpec({
         )
         project.executeGitCommand("tag", "-d", "monorepo/last-successful-build")
 
+        // Make a change after deleting the tag so there is something to detect
+        project.appendToFile(Files.APP2_SOURCE, "\n// Modified after tag removal")
+        project.commitAll("Change app2 after tag removal")
+
         // when
         val result = project.runTask("buildChangedProjects")
 
-        // then: no baseline exists, so all projects are treated as changed
+        // then: falls back to origin/main as baseline and detects the change
+        result.task(":buildChangedProjects")?.outcome shouldBe TaskOutcome.SUCCESS
+        result.output shouldContain "falling back to 'origin/main'"
+        val built = result.extractBuiltProjects()
+        built shouldContain Projects.APP2
+    }
+
+    test("buildChangedProjects treats all projects as changed when no baseline is available") {
+        // given: project without remote and no tag
+        val project = StandardTestProject.createAndInitialize(
+            testProjectListener.getTestProjectDir(),
+            withRemote = false
+        )
+        project.executeGitCommand("tag", "-d", "monorepo/last-successful-build")
+
+        // when
+        val result = project.runTask("buildChangedProjects")
+
+        // then: no tag and no origin/main — no baseline exists
         result.task(":buildChangedProjects")?.outcome shouldBe TaskOutcome.SUCCESS
         result.output shouldContain "no baseline"
         val built = result.extractBuiltProjects()

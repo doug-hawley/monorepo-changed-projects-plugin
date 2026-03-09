@@ -181,6 +181,70 @@ class GitRepositoryTest : FunSpec({
     test("refExists returns false for a ref that does not exist") {
         GitRepository(repoDir, logger).refExists("nonexistent-branch") shouldBe false
     }
+
+    // --- fetchRef ---
+
+    test("fetchRef returns true when fetching an existing ref from a remote") {
+        // given: ensure branch is named main, set up a bare remote and push
+        git(repoDir, "checkout", "-B", "main")
+        val remoteDir = Files.createTempDirectory("test-git-remote").toFile()
+        try {
+            git(remoteDir, "init", "--bare")
+            git(repoDir, "remote", "add", "origin", remoteDir.absolutePath)
+            git(repoDir, "push", "-u", "origin", "main")
+
+            // when
+            val result = GitRepository(repoDir, logger).fetchRef("origin", "main")
+
+            // then
+            result shouldBe true
+        } finally {
+            remoteDir.deleteRecursively()
+        }
+    }
+
+    test("fetchRef returns false when remote does not exist") {
+        // given: no remote configured
+
+        // when
+        val result = GitRepository(repoDir, logger).fetchRef("origin", "main")
+
+        // then
+        result shouldBe false
+    }
+
+    test("fetchRef returns false when ref does not exist on remote") {
+        // given: ensure branch is named main, set up a bare remote
+        git(repoDir, "checkout", "-B", "main")
+        val remoteDir = Files.createTempDirectory("test-git-remote").toFile()
+        try {
+            git(remoteDir, "init", "--bare")
+            git(repoDir, "remote", "add", "origin", remoteDir.absolutePath)
+            git(repoDir, "push", "-u", "origin", "main")
+
+            // when: fetch a nonexistent ref
+            val result = GitRepository(repoDir, logger).fetchRef("origin", "nonexistent-ref")
+
+            // then
+            result shouldBe false
+        } finally {
+            remoteDir.deleteRecursively()
+        }
+    }
+
+    test("fetchRef returns false when not inside a git repository") {
+        // given
+        val nonGitDir = Files.createTempDirectory("test-no-git").toFile()
+        try {
+            // when
+            val result = GitRepository(nonGitDir, logger).fetchRef("origin", "main")
+
+            // then
+            result shouldBe false
+        } finally {
+            nonGitDir.deleteRecursively()
+        }
+    }
 })
 
 private fun git(directory: File, vararg command: String) {

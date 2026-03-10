@@ -9,8 +9,13 @@ import java.util.concurrent.atomic.AtomicBoolean
 open class MonorepoBuildExtension {
     /**
      * The tag name that the plugin reads from and writes to for tracking the
-     * last successful build. Change detection compares HEAD against this tag.
-     * When the tag doesn't exist, all projects are treated as changed.
+     * last successful build.
+     *
+     * This tag is only used as baseline when the `buildChangedProjectsAndCreateReleaseBranches`
+     * task is requested (CI release builds). For all other tasks (`printChangedProjects`,
+     * `buildChangedProjects`), the plugin uses `origin/{primaryBranch}` as the baseline instead.
+     *
+     * When the chosen ref does not exist, all projects are treated as changed.
      */
     var lastSuccessfulBuildTag: String = "monorepo/last-successful-build"
 
@@ -27,6 +32,10 @@ open class MonorepoBuildExtension {
     /**
      * The ref that was actually used for change detection, or null when no baseline exists
      * (all projects treated as changed). Set internally after ref resolution.
+     *
+     * For CI release builds (`buildChangedProjectsAndCreateReleaseBranches`), this is typically
+     * the [lastSuccessfulBuildTag]. For all other tasks, this is `origin/{primaryBranch}`.
+     * Null when the chosen ref is not available.
      */
     var resolvedBaseRef: String? = null
         internal set

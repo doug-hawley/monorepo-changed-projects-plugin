@@ -219,13 +219,13 @@ class PrintChangedProjectsFunctionalTest : FunSpec({
         )
     }
 
-    // --- Ref-based scenarios (formerly ref-mode, now using tag/fallback) ---
+    // --- origin/main baseline scenarios ---
 
-    test("printChangedProjects detects directly changed project using tag as base ref") {
+    test("printChangedProjects detects directly changed project using origin/main baseline") {
         // given
         val project = StandardTestProject.createAndInitialize(
             testProjectListener.getTestProjectDir(),
-            withRemote = false
+            withRemote = true
         )
 
         // Make a change to common-lib and commit
@@ -241,11 +241,11 @@ class PrintChangedProjectsFunctionalTest : FunSpec({
         changed shouldContain Projects.COMMON_LIB
     }
 
-    test("printChangedProjects detects transitive dependents using tag") {
+    test("printChangedProjects detects transitive dependents using origin/main baseline") {
         // given
         val project = StandardTestProject.createAndInitialize(
             testProjectListener.getTestProjectDir(),
-            withRemote = false
+            withRemote = true
         )
 
         project.appendToFile(Files.COMMON_LIB_SOURCE, "\n// Modified")
@@ -266,25 +266,23 @@ class PrintChangedProjectsFunctionalTest : FunSpec({
         )
     }
 
-    test("printChangedProjects only shows projects changed since the tag") {
+    test("printChangedProjects only shows projects changed since origin/main") {
         // given
         val project = StandardTestProject.createAndInitialize(
             testProjectListener.getTestProjectDir(),
-            withRemote = false
+            withRemote = true
         )
 
-        // Change common-lib and commit
+        // Change common-lib, commit, and push to advance origin/main
         project.appendToFile(Files.COMMON_LIB_SOURCE, "\n// First change")
         project.commitAll("Modify common-lib")
+        project.executeGitCommand("push", "origin", "main")
 
-        // Move tag to after first change — simulates successful build
-        project.executeGitCommand("tag", "-f", "monorepo/last-successful-build")
-
-        // Change only module1 in a second commit
+        // Change only module1 in a second commit (not pushed)
         project.appendToFile(Files.MODULE1_SOURCE, "\n// Second change")
         project.commitAll("Modify module1")
 
-        // when: compare against the tag — only module1 changes are newer
+        // when: compare against origin/main — only module1 changes are newer
         val result = project.runTask("printChangedProjects")
 
         // then
@@ -307,6 +305,6 @@ class PrintChangedProjectsFunctionalTest : FunSpec({
 
         // then
         result.task(":printChangedProjects")?.outcome shouldBe TaskOutcome.SUCCESS
-        result.output shouldContain "Changed projects (since"
+        result.output shouldContain "Changed projects (since origin/main):"
     }
 })

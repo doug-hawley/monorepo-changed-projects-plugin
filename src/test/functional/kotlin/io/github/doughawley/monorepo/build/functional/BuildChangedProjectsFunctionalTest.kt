@@ -187,13 +187,13 @@ class BuildChangedProjectsFunctionalTest : FunSpec({
         )
     }
 
-    // --- Tag-based scenarios (formerly ref-mode) ---
+    // --- origin/main baseline scenarios ---
 
-    test("buildChangedProjects builds directly changed project using tag as base ref") {
+    test("buildChangedProjects uses origin/main as baseline and detects direct change") {
         // given
         val project = StandardTestProject.createAndInitialize(
             testProjectListener.getTestProjectDir(),
-            withRemote = false
+            withRemote = true
         )
 
         project.appendToFile(Files.APP2_SOURCE, "\n// Modified")
@@ -210,11 +210,11 @@ class BuildChangedProjectsFunctionalTest : FunSpec({
         built shouldNotContain Projects.MODULE1
     }
 
-    test("buildChangedProjects builds all projects affected by common-lib change using tag") {
+    test("buildChangedProjects uses origin/main as baseline and detects transitive dependents") {
         // given
         val project = StandardTestProject.createAndInitialize(
             testProjectListener.getTestProjectDir(),
-            withRemote = false
+            withRemote = true
         )
 
         project.appendToFile(Files.COMMON_LIB_SOURCE, "\n// Modified")
@@ -235,11 +235,11 @@ class BuildChangedProjectsFunctionalTest : FunSpec({
         )
     }
 
-    test("buildChangedProjects reports no changes when tag points at HEAD") {
-        // given: tag created by createAndInitialize at HEAD
+    test("buildChangedProjects reports no changes when nothing changed since origin/main") {
+        // given: origin/main at HEAD, no changes
         val project = StandardTestProject.createAndInitialize(
             testProjectListener.getTestProjectDir(),
-            withRemote = false
+            withRemote = true
         )
 
         // when
@@ -250,18 +250,44 @@ class BuildChangedProjectsFunctionalTest : FunSpec({
         result.output shouldContain "No projects have changed - nothing to build"
     }
 
-    test("buildChangedProjects treats all projects as changed when tag does not exist") {
-        // given: project with remote but no last-successful-build tag
+    test("buildChangedProjects ignores last-successful-build tag and uses origin/main") {
+        // given: tag exists but buildChangedProjects should use origin/main instead
         val project = StandardTestProject.createAndInitialize(
             testProjectListener.getTestProjectDir(),
             withRemote = true
         )
-        project.executeGitCommand("tag", "-d", "monorepo/last-successful-build")
+
+        project.appendToFile(Files.APP2_SOURCE, "\n// Modified")
+        project.commitAll("Change app2")
+
+        // Move the tag forward — if the plugin were using the tag, no changes would be detected
+        project.executeGitCommand("tag", "-f", "monorepo/last-successful-build")
+
+        // Make another change after the tag
+        project.appendToFile(Files.MODULE1_SOURCE, "\n// Second change")
+        project.commitAll("Change module1")
 
         // when
         val result = project.runTask("buildChangedProjects")
 
-        // then: no baseline exists, so all projects are treated as changed
+        // then: uses origin/main (initial commit), so both changes are detected
+        result.task(":buildChangedProjects")?.outcome shouldBe TaskOutcome.SUCCESS
+        val built = result.extractBuiltProjects()
+        built shouldContain Projects.APP2
+        built shouldContain Projects.MODULE1
+    }
+
+    test("buildChangedProjects treats all projects as changed when no baseline is available") {
+        // given: project without remote and no tag
+        val project = StandardTestProject.createAndInitialize(
+            testProjectListener.getTestProjectDir(),
+            withRemote = false
+        )
+
+        // when
+        val result = project.runTask("buildChangedProjects")
+
+        // then: no origin/main — no baseline exists
         result.task(":buildChangedProjects")?.outcome shouldBe TaskOutcome.SUCCESS
         result.output shouldContain "no baseline"
         val built = result.extractBuiltProjects()

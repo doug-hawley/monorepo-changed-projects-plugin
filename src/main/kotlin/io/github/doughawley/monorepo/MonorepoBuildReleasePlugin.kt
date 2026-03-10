@@ -206,21 +206,53 @@ class MonorepoBuildReleasePlugin @Inject constructor(
 
     /**
      * Resolves the base ref for change detection.
-     * Returns the last-successful-build tag if it exists, or null when no baseline exists
-     * (which causes all tracked files to be treated as changed).
+     *
+     * The baseline depends on which task the user requested:
+     * - If `buildChangedProjectsAndCreateReleaseBranches` is requested (CI release build) →
+     *   use the last-successful-build tag; fall back to `origin/{primaryBranch}` if the tag
+     *   does not exist
+     * - Otherwise (local dev / PR build) → use `origin/{primaryBranch}` directly
+     *
+     * If the chosen ref does not exist, returns null (all projects treated as changed).
      */
     private fun resolveBaseRef(project: Project, rootExtension: MonorepoExtension): String? {
         val buildExtension = rootExtension.build
         val gitRepository = GitRepository(project.rootDir, project.logger)
         val tag = buildExtension.lastSuccessfulBuildTag
+        val primaryBranch = rootExtension.primaryBranch
+        val remoteBranch = "origin/$primaryBranch"
 
-        if (gitRepository.refExists(tag)) {
-            project.logger.info("Using last-successful-build tag '$tag' as base ref")
-            return tag
+        val requestedTasks = project.gradle.startParameter.taskNames
+        val isReleaseRun = requestedTasks.any { taskName ->
+            taskName == "buildChangedProjectsAndCreateReleaseBranches" ||
+            taskName == ":buildChangedProjectsAndCreateReleaseBranches"
+        }
+
+        if (isReleaseRun) {
+            if (gitRepository.refExists(tag)) {
+                project.logger.info("Using last-successful-build tag '$tag' as base ref")
+                return tag
+            }
+            if (gitRepository.refExists(remoteBranch)) {
+                project.logger.lifecycle(
+                    "Tag '$tag' not found — falling back to '$remoteBranch' as base ref."
+                )
+                return remoteBranch
+            }
+            project.logger.lifecycle(
+                "Tag '$tag' not found and '$remoteBranch' is not available — no baseline exists. " +
+                "All projects will be treated as changed."
+            )
+            return null
+        }
+
+        if (gitRepository.refExists(remoteBranch)) {
+            project.logger.info("Using '$remoteBranch' as base ref")
+            return remoteBranch
         }
 
         project.logger.lifecycle(
-            "Tag '$tag' not found — no baseline exists. " +
+            "'$remoteBranch' is not available — no baseline exists. " +
             "All projects will be treated as changed."
         )
         return null

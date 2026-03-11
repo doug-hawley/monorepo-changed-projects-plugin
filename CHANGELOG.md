@@ -4,6 +4,37 @@ All notable changes to this project will be documented in this file.
 
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.3.6](https://github.com/doug-hawley/monorepo-build-release-plugin/compare/v0.3.5...v0.3.6) (2026-03-11)
+
+
+### Features
+
+* make release task depend on build task ([7df8dbc](https://github.com/doug-hawley/monorepo-build-release-plugin/commit/7df8dbcabed2dd36c7a84476b2f0bed4ce84b104)), closes [#111](https://github.com/doug-hawley/monorepo-build-release-plugin/issues/111)
+* treat all projects as changed when no baseline tag exists ([a57100b](https://github.com/doug-hawley/monorepo-build-release-plugin/commit/a57100b211fdaef622436dc228dac32bd7b90d94))
+* use task-aware baseline resolution for change detection ([ae37e20](https://github.com/doug-hawley/monorepo-build-release-plugin/commit/ae37e2004789332bdc235f14f7d38ec7dc057bf3)), closes [#121](https://github.com/doug-hawley/monorepo-build-release-plugin/issues/121) [#113](https://github.com/doug-hawley/monorepo-build-release-plugin/issues/113)
+
+
+### Bug Fixes
+
+* remove deprecated Task.project usage at execution time ([c9ff3b5](https://github.com/doug-hawley/monorepo-build-release-plugin/commit/c9ff3b5ab79d23551a7e9a43482620ce686bd1ee)), closes [#110](https://github.com/doug-hawley/monorepo-build-release-plugin/issues/110)
+* suppress noisy git rev-parse errors during release branch creation ([1488b35](https://github.com/doug-hawley/monorepo-build-release-plugin/commit/1488b356f68f5cbd106604f0b45d3c795d9b402e)), closes [#109](https://github.com/doug-hawley/monorepo-build-release-plugin/issues/109)
+
+
+### Performance Improvements
+
+* speed up functional tests by reducing Gradle TestKit overhead ([c92aabf](https://github.com/doug-hawley/monorepo-build-release-plugin/commit/c92aabfb2588cb7e59b08a71a67438f9ec2066e6)), closes [#114](https://github.com/doug-hawley/monorepo-build-release-plugin/issues/114)
+
+
+### Code Refactoring
+
+* rename buildChangedProjectsAndCreateReleaseBranches to createReleaseBranches ([5ccbed4](https://github.com/doug-hawley/monorepo-build-release-plugin/commit/5ccbed463256c76dee879c5ebfce1e10d629f09c))
+
+
+### Tests
+
+* prove release task uses tag baseline, not origin/main ([f51c921](https://github.com/doug-hawley/monorepo-build-release-plugin/commit/f51c92170486afd587eb9f8bed8aa57afccdd17b))
+* verify subproject builds run via createReleaseBranches dependency chain ([a984024](https://github.com/doug-hawley/monorepo-build-release-plugin/commit/a984024cd53d849be2c462a1792962c6b67ea8dd))
+
 ## [0.3.5](https://github.com/doug-hawley/monorepo-build-release-plugin/compare/v0.3.4...v0.3.5) (2026-03-08)
 
 

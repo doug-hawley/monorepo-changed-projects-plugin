@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.3.7](https://github.com/doug-hawley/monorepo-build-release-plugin/compare/v0.3.6...v0.3.7) (2026-03-14)
+
+
+### Features
+
+* fetch lastSuccessfulBuildTag from remote before resolving ([e4d7aba](https://github.com/doug-hawley/monorepo-build-release-plugin/commit/e4d7aba18451bec70bb907c68bd351bbf5680ebc)), closes [#129](https://github.com/doug-hawley/monorepo-build-release-plugin/issues/129)
+* log change detection baseline at lifecycle level ([837b777](https://github.com/doug-hawley/monorepo-build-release-plugin/commit/837b77719879df1c1f3974573010047a46e3ecf8))
+
+
+### Bug Fixes
+
+* address code audit findings from issue [#132](https://github.com/doug-hawley/monorepo-build-release-plugin/issues/132) ([1774961](https://github.com/doug-hawley/monorepo-build-release-plugin/commit/1774961ef3804fbec95e7fcc1fb5cbdc5fdb4f86))
+* throw on unexpected fetchTag failures instead of failing silently ([b8851ea](https://github.com/doug-hawley/monorepo-build-release-plugin/commit/b8851eabb771734483b159943b9dcc3d7bf8a486))
+* use explicit main branch in GitRepositoryTest to fix CI ([104f049](https://github.com/doug-hawley/monorepo-build-release-plugin/commit/104f04938ca0061848919e721d1c36497bf5b7bb))
+
 ## [0.3.6](https://github.com/doug-hawley/monorepo-build-release-plugin/compare/v0.3.5...v0.3.6) (2026-03-11)
 
 

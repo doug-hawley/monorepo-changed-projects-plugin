@@ -20,7 +20,7 @@ Requires Gradle 7.0+, Java 17+, and Git in your PATH.
 
 ```kotlin
 plugins {
-    id("io.github.doug-hawley.monorepo-build-release-plugin") version "0.3.6" // x-release-please-version
+    id("io.github.doug-hawley.monorepo-build-release-plugin") version "0.3.7" // x-release-please-version
 }
 ```
 
